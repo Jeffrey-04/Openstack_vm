@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+build/
+dist/
+Frontend/build/
+Backend/build/
+
+# Logs
+logs/
+*.log
+*.log.*
+pm2-*.log
+
+# PM2
+.pm2/
+pids/
+*.pid
+*.seed
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.bak
+backup-*.tar.gz
+
+#Ressources
+INSTRUCTIONS-FINALES.md
+QUICKSTART.md
+Guide.md
+README.md
+config.md
+guide_realisation_nova_cursor.md
