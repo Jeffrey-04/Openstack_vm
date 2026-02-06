@@ -61,3 +61,8 @@ QUICKSTART.md
 Guide.md
 config.md
 guide_realisation_nova_cursor.md
+
+#Environnement
+Frontend/.env
+Backend/.env
+
