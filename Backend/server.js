@@ -33,12 +33,6 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// API Documentation (Swagger)
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { explorer: true }));
-app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
-
 // Routes
 const authRoutes = require('./routes/auth');
 const openstackRoutes = require('./routes/openstack');

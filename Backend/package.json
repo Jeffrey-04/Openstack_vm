@@ -33,9 +33,7 @@
     "sqlite3": "^5.1.6",
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
-    "pdfkit": "^0.14.0",
-    "swagger-ui-express": "^5.0.0",
-    "swagger-jsdoc": "^6.2.8"
+    "pdfkit": "^0.14.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
