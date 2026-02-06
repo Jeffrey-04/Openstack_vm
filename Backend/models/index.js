@@ -1,4 +1,4 @@
-const { sequelize } = require('../config/database');
+const { sequelize, testConnection } = require('../config/database');
 const User = require('./User');
 const VM = require('./VM');
 const Invoice = require('./Invoice');
@@ -39,6 +39,7 @@ module.exports = {
   sequelize,
   models,
   syncDatabase,
+  testConnection,
   User,
   VM,
   Invoice,
