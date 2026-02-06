@@ -19,7 +19,19 @@ export default function Register() {
       await register({ email, password, name: name || undefined });
       navigate('/', { replace: true });
     } catch (err) {
-      const msg = err.response?.data?.error?.message || err.response?.data?.error?.details?.[0]?.msg || 'Inscription impossible';
+      console.error('[Register] Erreur complète:', err);
+      console.error('[Register] err.response:', err.response);
+      console.error('[Register] err.message:', err.message);
+      console.error('[Register] err.code:', err.code);
+      const data = err.response?.data;
+      const errObj = data?.error;
+      const details = errObj?.details;
+      const firstDetail = Array.isArray(details) ? details[0] : null;
+      const msg =
+        errObj?.message ||
+        (firstDetail && (firstDetail.msg || firstDetail.message)) ||
+        (data?.message) ||
+        (err.response?.status === 0 || err.code === 'ERR_NETWORK' ? 'Connexion au serveur impossible. Vérifiez que le backend est démarré et que l\'URL API est correcte.' : 'Inscription impossible');
       setError(msg);
     } finally {
       setSubmitting(false);

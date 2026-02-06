@@ -33,6 +33,15 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
+// Log de toutes les requêtes API (pour diagnostic)
+const logger = require('./utils/logger');
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    logger.request(req.method, req.path, req.method !== 'GET' ? req.body : undefined);
+  }
+  next();
+});
+
 // Routes
 const authRoutes = require('./routes/auth');
 const openstackRoutes = require('./routes/openstack');
@@ -59,9 +68,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Error handling middleware
+// Error handling middleware (logger déjà requis plus haut)
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  logger.error('Unhandled error', err.message, err.stack);
   res.status(err.status || 500).json({
     error: {
       message: err.message || 'Internal Server Error',
@@ -72,6 +81,7 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use('*', (req, res) => {
+  logger.warn('404', req.method, req.originalUrl);
   res.status(404).json({
     error: {
       message: 'Route not found',

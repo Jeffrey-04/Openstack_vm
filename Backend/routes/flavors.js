@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const openstack = require('../config/openstack');
+const logger = require('../utils/logger');
 
 // Pricing configuration (in USD per month)
 const PRICING = {
@@ -15,6 +16,7 @@ const PRICING = {
 // List all flavors with pricing
 router.get('/', async (req, res, next) => {
   try {
+    logger.info('Flavors: list');
     const data = await openstack.listFlavors();
     
     // Add pricing information to flavors
@@ -31,6 +33,7 @@ router.get('/', async (req, res, next) => {
       flavors: flavorsWithPricing
     });
   } catch (error) {
+    logger.error('Flavors list:', error.message);
     next(error);
   }
 });

@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const openstack = require('../config/openstack');
+const logger = require('../utils/logger');
 
 // List all images
 router.get('/', async (req, res, next) => {
   try {
+    logger.info('Images: list');
     const data = await openstack.listImages();
     
     // Filter and format images
@@ -26,6 +28,7 @@ router.get('/', async (req, res, next) => {
       images
     });
   } catch (error) {
+    logger.error('Images list:', error.message);
     next(error);
   }
 });

@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const openstack = require('../config/openstack');
 const scalingController = require('../controllers/scalingController');
+const logger = require('../utils/logger');
 
 // List all VMs
 router.get('/', async (req, res, next) => {
   try {
+    logger.info('VMs: list');
     const data = await openstack.listServers();
     res.json({
       success: true,
@@ -13,6 +15,7 @@ router.get('/', async (req, res, next) => {
       servers: data.servers || []
     });
   } catch (error) {
+    logger.error('VMs list:', error.message);
     next(error);
   }
 });

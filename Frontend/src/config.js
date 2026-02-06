@@ -1,5 +1,7 @@
 // Configuration de l'API
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+// En production ou derrière Nginx : utiliser '' pour des URLs relatives (/api/...) proxyfiées par Nginx.
+// En dev local (npm start sur ta machine) : mettre REACT_APP_API_URL=http://localhost:3001 dans .env
+const API_BASE_URL = process.env.REACT_APP_API_URL ?? '';
 
 export const API = {
   BASE_URL: API_BASE_URL,

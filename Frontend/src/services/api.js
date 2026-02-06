@@ -12,21 +12,35 @@ const axiosInstance = axios.create({
   }
 });
 
+const log = (msg, ...args) => {
+  const ts = new Date().toISOString();
+  console.log(`[API] ${ts} ${msg}`, ...args);
+};
+
 axiosInstance.interceptors.request.use((config) => {
+  const url = (config.baseURL || '') + (config.url || '');
+  log('REQUEST', config.method?.toUpperCase(), url);
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    log('RESPONSE', response.status, response.config.method?.toUpperCase(), response.config.url);
+    return response;
+  },
   (error) => {
+    if (error.response) {
+      log('API Error', error.response.status, error.response.data);
+    } else {
+      log('API Error (no response)', error.message, error.code || '');
+    }
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.dispatchEvent(new Event('auth-logout'));
     }
-    console.error('API Error:', error.response?.data || error);
     return Promise.reject(error);
   }
 );

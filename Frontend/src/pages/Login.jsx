@@ -20,7 +20,11 @@ export default function Login() {
       await login(email, password);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Connexion impossible');
+      console.error('[Login] Erreur:', err?.response?.data || err?.message, err);
+      const msg =
+        err.response?.data?.error?.message ||
+        (err.response?.status === 0 || err.code === 'ERR_NETWORK' ? 'Connexion au serveur impossible.' : 'Connexion impossible');
+      setError(msg);
     } finally {
       setSubmitting(false);
     }

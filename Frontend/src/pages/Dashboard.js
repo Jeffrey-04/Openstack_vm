@@ -21,20 +21,21 @@ function Dashboard() {
     try {
       setLoading(true);
       setError(null);
+      console.log('[Dashboard] Chargement des données...');
 
-      // Load OpenStack status
       const statusResult = await apiService.getOpenstackStatus();
+      console.log('[Dashboard] OpenStack status OK');
       setOpenstackStatus(statusResult);
 
-      // Load VMs
       const vmsResult = await apiService.getVMs();
-      const activeVMs = vmsResult.servers.filter(vm => vm.status === 'ACTIVE').length;
+      const activeVMs = (vmsResult.servers || []).filter(vm => vm.status === 'ACTIVE').length;
+      console.log('[Dashboard] VMs OK', vmsResult.count);
 
-      // Load Flavors
       const flavorsResult = await apiService.getFlavors();
+      console.log('[Dashboard] Flavors OK', flavorsResult.count);
 
-      // Load Images
       const imagesResult = await apiService.getImages();
+      console.log('[Dashboard] Images OK', imagesResult.count);
 
       setStats({
         totalVMs: vmsResult.count || 0,
@@ -42,10 +43,13 @@ function Dashboard() {
         totalFlavors: flavorsResult.count || 0,
         totalImages: imagesResult.count || 0
       });
-
     } catch (err) {
-      console.error('Error loading dashboard:', err);
-      setError('Impossible de charger les données du dashboard');
+      console.error('[Dashboard] Erreur chargement:', err);
+      console.error('[Dashboard] err.response:', err.response?.status, err.response?.data);
+      console.error('[Dashboard] err.message:', err.message, 'code:', err.code);
+      const msg = err.response?.data?.error?.message || err.response?.data?.message ||
+        (err.code === 'ERR_NETWORK' ? 'Connexion au serveur impossible.' : 'Impossible de charger les données du dashboard');
+      setError(msg);
     } finally {
       setLoading(false);
     }

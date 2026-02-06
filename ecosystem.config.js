@@ -21,12 +21,12 @@ module.exports = {
       env: {
         NODE_ENV: 'development',
         PORT: 3000,
-        REACT_APP_API_URL: 'http://localhost:3001',
+        REACT_APP_API_URL: '',  // URLs relatives /api/ → Nginx proxy vers le backend
       },
       env_production: {
         NODE_ENV: 'production',
         PORT: 3000,
-        REACT_APP_API_URL: 'http://VOTRE_IP_VPS/api',
+        REACT_APP_API_URL: '',  // idem : même origine, Nginx proxy /api/ vers backend:3001
       },
     },
   ],
