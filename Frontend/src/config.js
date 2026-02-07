@@ -37,6 +37,7 @@ export const API = {
     INVOICES: `${API_BASE_URL}/api/invoices`,
     INVOICE_BY_ID: (id) => `${API_BASE_URL}/api/invoices/${id}`,
     INVOICE_DOWNLOAD: (id) => `${API_BASE_URL}/api/invoices/${id}/download`,
+    INVOICE_PAY: (id) => `${API_BASE_URL}/api/invoices/${id}/pay`,
     PRICING_RULES: `${API_BASE_URL}/api/pricing-rules`,
   }
 };

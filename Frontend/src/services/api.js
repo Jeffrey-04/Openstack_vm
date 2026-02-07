@@ -33,13 +33,18 @@ axiosInstance.interceptors.response.use(
   (error) => {
     if (error.response) {
       log('API Error', error.response.status, error.response.data);
+      const status = error.response.status;
+      if (status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.dispatchEvent(new Event('auth-logout'));
+        window.dispatchEvent(new CustomEvent('api-toast', { detail: { type: 'error', message: 'Session expirée. Veuillez vous reconnecter.' } }));
+      } else if (status >= 500) {
+        window.dispatchEvent(new CustomEvent('api-toast', { detail: { type: 'error', message: 'Erreur serveur. Réessayez plus tard.' } }));
+      }
     } else {
       log('API Error (no response)', error.message, error.code || '');
-    }
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.dispatchEvent(new Event('auth-logout'));
+      window.dispatchEvent(new CustomEvent('api-toast', { detail: { type: 'error', message: 'Connexion au serveur impossible.' } }));
     }
     return Promise.reject(error);
   }
@@ -146,6 +151,10 @@ export const apiService = {
   },
   getInvoiceDownloadUrl(id) {
     return `${API.ENDPOINTS.INVOICE_DOWNLOAD(id)}?token=${getToken()}`;
+  },
+  async payInvoice(id) {
+    const response = await axiosInstance.post(API.ENDPOINTS.INVOICE_PAY(id));
+    return response.data;
   },
   async getPricingRules() {
     const response = await axiosInstance.get(API.ENDPOINTS.PRICING_RULES);

@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import apiService from '../services/api';
+import toast from 'react-hot-toast';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import EmptyState from '../components/common/EmptyState';
 
 function MyVMs() {
+  const location = useLocation();
+  const isClient = location.pathname.startsWith('/client');
   const [vms, setVMs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,8 +53,8 @@ function MyVMs() {
 
     } catch (err) {
       console.error('Error performing action:', err);
-      alert(`Erreur: ${err.message}`);
-      setActionLoading({ ...actionLoading, [vmId]: null });
+      toast.error(err.response?.data?.error?.message || err.message || 'Erreur lors de l\'action');
+      setActionLoading((prev) => ({ ...prev, [vmId]: null }));
     }
   };
 
@@ -66,21 +72,20 @@ function MyVMs() {
 
   const getStatusText = (status) => {
     const statusTextMap = {
-      'ACTIVE': '✅ Actif',
-      'SHUTOFF': '⛔ Arrêté',
-      'BUILD': '🔨 En construction',
-      'ERROR': '❌ Erreur',
-      'PAUSED': '⏸️ En pause',
-      'SUSPENDED': '💤 Suspendu'
+      ACTIVE: 'Actif',
+      SHUTOFF: 'Arrêté',
+      BUILD: 'En construction',
+      ERROR: 'Erreur',
+      PAUSED: 'En pause',
+      SUSPENDED: 'Suspendu',
     };
     return statusTextMap[status] || status;
   };
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="spinner"></div>
-        <p style={{ marginTop: '1rem', color: 'white' }}>Chargement de vos VMs...</p>
+      <div className="ds-loading-wrap">
+        <LoadingSpinner message="Chargement de vos VMs..." />
       </div>
     );
   }
@@ -115,12 +120,18 @@ function MyVMs() {
       </div>
 
       {vms.length === 0 ? (
-        <div className="alert alert-info">
-          <strong>Info:</strong> Vous n'avez pas encore de machines virtuelles.
-          <a href="/create" style={{ marginLeft: '1rem', textDecoration: 'underline' }}>
-            Créer votre première VM
-          </a>
-        </div>
+        <EmptyState
+          title="Aucune machine virtuelle"
+          message="Créez votre première VM en quelques clics."
+          action={
+            <Link
+              to={isClient ? '/client/create' : '/create'}
+              className="btn btn-primary"
+            >
+              Créer une VM
+            </Link>
+          }
+        />
       ) : (
         <div className="grid grid-2">
           {vms.map((vm) => (

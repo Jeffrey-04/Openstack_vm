@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import apiService from '../services/api';
+import toast from 'react-hot-toast';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
 function CreateVM() {
   const navigate = useNavigate();
   const location = useLocation();
   const selectedFlavorFromMarketplace = location.state?.selectedFlavor;
-
+  const isClient = location.pathname.startsWith('/client');
+  const isAdmin = location.pathname.startsWith('/admin');
   const [formData, setFormData] = useState({
     name: '',
     flavorRef: selectedFlavorFromMarketplace?.id || '',
@@ -66,7 +69,7 @@ function CreateVM() {
     e.preventDefault();
 
     if (!formData.name || !formData.flavorRef || !formData.imageRef) {
-      alert('Veuillez remplir tous les champs requis');
+      toast.error('Veuillez remplir tous les champs requis');
       return;
     }
 
@@ -74,14 +77,17 @@ function CreateVM() {
       setCreating(true);
       setError(null);
 
-      const result = await apiService.createVM(formData);
-      
-      alert('VM créée avec succès ! Elle sera prête dans quelques minutes.');
-      navigate('/my-vms');
+      await apiService.createVM(formData);
+      toast.success('VM créée avec succès. Elle sera prête dans quelques minutes.');
+      if (isClient) navigate('/client/vms');
+      else if (isAdmin) navigate('/admin/vms');
+      else navigate('/my-vms');
 
     } catch (err) {
       console.error('Error creating VM:', err);
-      setError(err.response?.data?.error?.message || 'Erreur lors de la création de la VM');
+      const msg = err.response?.data?.error?.message || 'Erreur lors de la création de la VM';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setCreating(false);
     }
@@ -104,9 +110,8 @@ function CreateVM() {
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="spinner"></div>
-        <p style={{ marginTop: '1rem', color: 'white' }}>Chargement du formulaire...</p>
+      <div className="ds-loading-wrap">
+        <LoadingSpinner message="Chargement du formulaire..." />
       </div>
     );
   }
@@ -217,7 +222,7 @@ function CreateVM() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/my-vms')}
+                onClick={() => { if (isClient) navigate('/client/vms'); else if (isAdmin) navigate('/admin/vms'); else navigate('/my-vms'); }}
                 className="btn btn-secondary"
               >
                 Annuler
