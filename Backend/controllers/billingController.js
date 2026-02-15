@@ -1,4 +1,4 @@
-const { Invoice, InvoiceItem, User, PricingRule } = require('../models');
+const { Invoice, InvoiceItem, User, PricingRule, PaymentMethod } = require('../models');
 const { calculateInvoiceForPeriod } = require('../services/billingEngine');
 const { generatePdf } = require('../services/invoiceGenerator');
 const { Op } = require('sequelize');
@@ -219,6 +219,88 @@ async function updatePricingRules(req, res, next) {
   }
 }
 
+async function getBillingPreferences(req, res, next) {
+  try {
+    const user = await User.findByPk(req.userId, { attributes: ['id', 'paymentMode'] });
+    if (!user) {
+      return res.status(404).json({ error: { message: 'User not found', status: 404 } });
+    }
+    const card = await PaymentMethod.findOne({
+      where: { userId: req.userId },
+      order: [['updatedAt', 'DESC']]
+    });
+    res.json({
+      success: true,
+      preferences: {
+        paymentMode: user.paymentMode || 'manual',
+        card: card
+          ? {
+              last4: card.last4,
+              brand: card.brand,
+              isTest: card.isTest,
+              hasCard: true
+            }
+          : { hasCard: false }
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateBillingPreferences(req, res, next) {
+  try {
+    const { paymentMode, card } = req.body;
+    const user = await User.findByPk(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: { message: 'User not found', status: 404 } });
+    }
+    if (paymentMode === 'manual' || paymentMode === 'auto') {
+      user.paymentMode = paymentMode;
+      await user.save();
+    }
+    if (card && paymentMode === 'auto') {
+      const last4 = (card.cardNumber || '').slice(-4);
+      let pm = await PaymentMethod.findOne({ where: { userId: req.userId } });
+      if (pm) {
+        await pm.update({
+          cardNumber: card.cardNumber || null,
+          cardExpiry: card.cardExpiry || null,
+          cardCvv: card.cardCvv || null,
+          last4: last4 || null,
+          brand: card.brand || 'TEST',
+          isTest: true
+        });
+      } else {
+        await PaymentMethod.create({
+          userId: req.userId,
+          cardNumber: card.cardNumber || null,
+          cardExpiry: card.cardExpiry || null,
+          cardCvv: card.cardCvv || null,
+          last4: last4 || null,
+          brand: card.brand || 'TEST',
+          isTest: true
+        });
+      }
+    }
+    const cardRow = await PaymentMethod.findOne({
+      where: { userId: req.userId },
+      order: [['updatedAt', 'DESC']]
+    });
+    res.json({
+      success: true,
+      preferences: {
+        paymentMode: user.paymentMode || 'manual',
+        card: cardRow
+          ? { last4: cardRow.last4, brand: cardRow.brand, isTest: cardRow.isTest, hasCard: true }
+          : { hasCard: !!card }
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listInvoices,
   getInvoice,
@@ -226,5 +308,7 @@ module.exports = {
   createInvoice,
   payInvoice,
   getPricingRules,
-  updatePricingRules
+  updatePricingRules,
+  getBillingPreferences,
+  updateBillingPreferences
 };

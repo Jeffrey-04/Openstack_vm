@@ -2,17 +2,48 @@ const express = require('express');
 const router = express.Router();
 const openstack = require('../config/openstack');
 const scalingController = require('../controllers/scalingController');
+const { authenticate } = require('../middleware/auth');
+const { VM, VmRuntime, VMTemplate, ScalingPolicy } = require('../models');
 const logger = require('../utils/logger');
 
-// List all VMs
+async function findFlavorBySpecs(vcpus, ramGb, diskGb) {
+  const data = await openstack.listFlavors();
+  const flavors = (data.flavors || []).slice();
+  const ramMb = Math.ceil((ramGb || 0) * 1024) || 512;
+  const needVcpus = vcpus || 1;
+  const needDisk = diskGb || 20;
+  const candidates = flavors.filter(
+    (f) => (f.vcpus || 0) >= needVcpus && (f.ram || 0) >= ramMb && (f.disk || 0) >= needDisk
+  );
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => (a.vcpus * 1024 + a.ram) - (b.vcpus * 1024 + b.ram));
+  return candidates[0];
+}
+
+// All VM routes require authentication
+router.use(authenticate);
+
+// List VMs for the current user (from DB, optionally sync status from OpenStack)
 router.get('/', async (req, res, next) => {
   try {
-    logger.info('VMs: list');
-    const data = await openstack.listServers();
+    const vms = await VM.findAll({
+      where: { userId: req.userId },
+      order: [['createdAt', 'DESC']]
+    });
+    const servers = await Promise.all(
+      vms.map(async (vm) => {
+        try {
+          const data = await openstack.getServer(vm.instanceId);
+          return { ...data.server, dbId: vm.id, flavorId: vm.flavorId };
+        } catch {
+          return { id: vm.instanceId, name: vm.instanceId, status: vm.status || 'UNKNOWN', dbId: vm.id, flavorId: vm.flavorId };
+        }
+      })
+    );
     res.json({
       success: true,
-      count: data.servers?.length || 0,
-      servers: data.servers || []
+      count: servers.length,
+      servers
     });
   } catch (error) {
     logger.error('VMs list:', error.message);
@@ -26,28 +57,83 @@ router.put('/:id/scaling-policy', scalingController.putScalingPolicy);
 router.get('/:id/metrics', scalingController.getMetrics);
 router.get('/:id/scaling-history', scalingController.getScalingHistory);
 
-// Get specific VM
+// Get specific VM (must belong to current user)
 router.get('/:id', async (req, res, next) => {
   try {
+    const vm = await VM.findOne({ where: { instanceId: req.params.id, userId: req.userId } });
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
+    }
     const data = await openstack.getServer(req.params.id);
     res.json({
       success: true,
-      server: data.server
+      server: { ...data.server, dbId: vm.id, flavorId: vm.flavorId }
     });
   } catch (error) {
     next(error);
   }
 });
 
-// Create new VM
+// Create new VM (and persist in DB for billing/scaling)
+// Body: name, and either templateId OR (flavorRef + imageRef) OR (vcpus, ramGb, diskGb + imageRef)
+// Optional: networkId, keyName, scaling: { thresholdHigh, thresholdLow, metricType, baseFlavorId }
 router.post('/', async (req, res, next) => {
   try {
-    const { name, flavorRef, imageRef, networkId, keyName } = req.body;
+    const {
+      name,
+      templateId,
+      flavorRef,
+      imageRef,
+      networkId,
+      keyName,
+      vcpus,
+      ramGb,
+      diskGb,
+      scaling
+    } = req.body;
 
-    if (!name || !flavorRef || !imageRef) {
+    if (!name) {
+      return res.status(400).json({
+        error: { message: 'Missing required field: name', status: 400 }
+      });
+    }
+
+    let flavorIdToUse = flavorRef;
+    let imageIdToUse = imageRef;
+
+    if (templateId) {
+      const template = await VMTemplate.findByPk(templateId);
+      if (!template) {
+        return res.status(400).json({
+          error: { message: 'Template not found', status: 400 }
+        });
+      }
+      flavorIdToUse = template.flavorId;
+      imageIdToUse = template.imageId;
+    } else if (vcpus != null || ramGb != null || diskGb != null) {
+      if (!imageRef) {
+        return res.status(400).json({
+          error: { message: 'imageRef is required for custom (vCPU/RAM/disk) VM', status: 400 }
+        });
+      }
+      const flavor = await findFlavorBySpecs(
+        vcpus ? Number(vcpus) : 1,
+        ramGb ? Number(ramGb) : 1,
+        diskGb ? Number(diskGb) : 20
+      );
+      if (!flavor) {
+        return res.status(400).json({
+          error: { message: 'No flavor matches the requested vCPU/RAM/disk', status: 400 }
+        });
+      }
+      flavorIdToUse = flavor.id;
+      imageIdToUse = imageRef;
+    }
+
+    if (!flavorIdToUse || !imageIdToUse) {
       return res.status(400).json({
         error: {
-          message: 'Missing required fields: name, flavorRef, imageRef',
+          message: 'Provide templateId, or (flavorRef + imageRef), or (vcpus, ramGb, diskGb + imageRef)',
           status: 400
         }
       });
@@ -55,16 +141,34 @@ router.post('/', async (req, res, next) => {
 
     const serverData = {
       name,
-      flavorRef,
-      imageRef,
-      networks: networkId ? [{ uuid: networkId }] : 'auto',
+      flavorRef: flavorIdToUse,
+      imageRef: imageIdToUse,
+      networks: networkId ? [{ uuid: networkId }] : 'auto'
     };
-
-    if (keyName) {
-      serverData.key_name = keyName;
-    }
+    if (keyName) serverData.key_name = keyName;
 
     const data = await openstack.createServer(serverData);
+    const server = data.server;
+    const instanceId = typeof server.id === 'string' ? server.id : server.id?.id;
+
+    await VM.create({
+      userId: req.userId,
+      instanceId,
+      flavorId: flavorIdToUse,
+      status: server.status || 'BUILD'
+    });
+
+    if (scaling && (scaling.thresholdHigh != null || scaling.thresholdLow != null)) {
+      await ScalingPolicy.create({
+        instanceId,
+        metricType: scaling.metricType || 'cpu_and_memory',
+        thresholdHigh: scaling.thresholdHigh ?? 80,
+        thresholdLow: scaling.thresholdLow ?? 20,
+        isActive: true,
+        baseFlavorId: scaling.baseFlavorId || flavorIdToUse
+      });
+    }
+
     res.status(201).json({
       success: true,
       message: 'VM created successfully',
@@ -75,10 +179,15 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// Delete VM
+// Delete VM (must belong to current user)
 router.delete('/:id', async (req, res, next) => {
   try {
+    const vm = await VM.findOne({ where: { instanceId: req.params.id, userId: req.userId } });
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
+    }
     await openstack.deleteServer(req.params.id);
+    await vm.destroy();
     res.json({
       success: true,
       message: 'VM deleted successfully'
@@ -88,11 +197,16 @@ router.delete('/:id', async (req, res, next) => {
   }
 });
 
-// VM Actions (start, stop, reboot, etc.)
+// VM Actions (start, stop, reboot, etc.) — track runtime for billing on start/stop
 router.post('/:id/action', async (req, res, next) => {
   try {
     const { action } = req.body;
     const serverId = req.params.id;
+
+    const vm = await VM.findOne({ where: { instanceId: serverId, userId: req.userId } });
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
+    }
 
     let actionBody;
     switch (action) {
@@ -127,6 +241,30 @@ router.post('/:id/action', async (req, res, next) => {
     }
 
     await openstack.serverAction(serverId, actionBody);
+
+    if (action === 'start') {
+      const alreadyRunning = await VmRuntime.findOne({
+        where: { instanceId: serverId, userId: req.userId, stoppedAt: null }
+      });
+      if (!alreadyRunning) {
+        await VmRuntime.create({
+          instanceId: serverId,
+          userId: req.userId,
+          startedAt: new Date(),
+          stoppedAt: null
+        });
+      }
+    } else if (action === 'stop') {
+      const runtime = await VmRuntime.findOne({
+        where: { instanceId: serverId, userId: req.userId, stoppedAt: null },
+        order: [['startedAt', 'DESC']]
+      });
+      if (runtime) {
+        runtime.stoppedAt = new Date();
+        await runtime.save();
+      }
+    }
+
     res.json({
       success: true,
       message: `VM ${action} action executed successfully`

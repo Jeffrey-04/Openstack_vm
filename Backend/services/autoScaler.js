@@ -1,4 +1,4 @@
-const { ScalingPolicy, ScalingEvent } = require('../models');
+const { ScalingPolicy, ScalingEvent, GlobalScaleUpRule, VM } = require('../models');
 const openstack = require('../config/openstack');
 const { Op } = require('sequelize');
 
@@ -25,6 +25,27 @@ async function findNextFlavor(currentFlavorId, direction) {
   return null;
 }
 
+/** Find smallest flavor that has at least current + (deltaVcpus, deltaRamMb). */
+async function findFlavorForScaleUp(currentFlavorId, deltaVcpus, deltaRamMb) {
+  const data = await openstack.listFlavors();
+  const flavors = (data.flavors || []).slice();
+  let current;
+  try {
+    const res = await openstack.getFlavor(currentFlavorId);
+    current = res.flavor || res;
+  } catch (e) {
+    return findNextFlavor(currentFlavorId, 'up');
+  }
+  const needVcpus = (current.vcpus || 1) + (deltaVcpus || 0);
+  const needRam = (current.ram || 512) + (deltaRamMb || 0);
+  const candidates = flavors.filter(
+    f => f.vcpus >= needVcpus && f.ram >= needRam
+  );
+  if (candidates.length === 0) return findNextFlavor(currentFlavorId, 'up');
+  candidates.sort((a, b) => (a.vcpus * 1024 + a.ram) - (b.vcpus * 1024 + b.ram));
+  return candidates[0];
+}
+
 async function scaleUp(instanceId, policy, currentValue) {
   if (await isInCooldown(instanceId)) return;
   let server;
@@ -37,8 +58,22 @@ async function scaleUp(instanceId, policy, currentValue) {
   const sid = server.server?.id || server.id;
   const currentFlavorId = server.server?.flavor?.id || server.flavor?.id;
   if (!currentFlavorId) return;
-  const nextFlavor = await findNextFlavor(currentFlavorId, 'up');
+
+  let nextFlavor = null;
+  const rule = await GlobalScaleUpRule.findOne({ where: { isActive: true } });
+  if (rule) {
+    nextFlavor = await findFlavorForScaleUp(
+      currentFlavorId,
+      rule.deltaVcpus,
+      rule.deltaRamMb
+    );
+  }
+  if (!nextFlavor) nextFlavor = await findNextFlavor(currentFlavorId, 'up');
   if (!nextFlavor) return;
+
+  const triggerVal = typeof currentValue === 'object'
+    ? (currentValue.cpu_util ?? currentValue.memory_usage ?? 0)
+    : currentValue;
   try {
     await openstack.resizeServer(sid, nextFlavor.id);
     await ScalingEvent.create({
@@ -47,8 +82,10 @@ async function scaleUp(instanceId, policy, currentValue) {
       oldFlavorId: currentFlavorId,
       newFlavorId: nextFlavor.id,
       triggerMetric: policy.metricType,
-      triggerValue: currentValue
+      triggerValue: triggerVal
     });
+    const vm = await VM.findOne({ where: { instanceId: sid } });
+    if (vm) await vm.update({ flavorId: nextFlavor.id });
     console.log(`Scale up: ${sid} -> ${nextFlavor.name}`);
   } catch (err) {
     console.error('Scale up error:', err.message);
@@ -67,8 +104,22 @@ async function scaleDown(instanceId, policy, currentValue) {
   const sid = server.server?.id || server.id;
   const currentFlavorId = server.server?.flavor?.id || server.flavor?.id;
   if (!currentFlavorId) return;
-  const nextFlavor = await findNextFlavor(currentFlavorId, 'down');
+
+  let nextFlavor = null;
+  if (policy.baseFlavorId && policy.baseFlavorId !== currentFlavorId) {
+    try {
+      const res = await openstack.getFlavor(policy.baseFlavorId);
+      nextFlavor = res.flavor || res;
+    } catch (e) {
+      // fallback to findNextFlavor
+    }
+  }
+  if (!nextFlavor) nextFlavor = await findNextFlavor(currentFlavorId, 'down');
   if (!nextFlavor) return;
+
+  const triggerVal = typeof currentValue === 'object'
+    ? (currentValue.cpu_util ?? currentValue.memory_usage ?? 0)
+    : currentValue;
   try {
     await openstack.resizeServer(sid, nextFlavor.id);
     await ScalingEvent.create({
@@ -77,8 +128,10 @@ async function scaleDown(instanceId, policy, currentValue) {
       oldFlavorId: currentFlavorId,
       newFlavorId: nextFlavor.id,
       triggerMetric: policy.metricType,
-      triggerValue: currentValue
+      triggerValue: triggerVal
     });
+    const vm = await VM.findOne({ where: { instanceId: sid } });
+    if (vm) await vm.update({ flavorId: nextFlavor.id });
     console.log(`Scale down: ${sid} -> ${nextFlavor.name}`);
   } catch (err) {
     console.error('Scale down error:', err.message);
@@ -90,9 +143,23 @@ class AutoScaler {
     if (!policy || !policy.isActive) return;
     const high = Number(policy.thresholdHigh);
     const low = Number(policy.thresholdLow);
-    if (currentValue >= high) {
+
+    let shouldScaleUp = false;
+    let shouldScaleDown = false;
+    if (metricType === 'cpu_and_memory' && typeof currentValue === 'object') {
+      const cpu = Number(currentValue.cpu_util) || 0;
+      const mem = Number(currentValue.memory_usage) || 0;
+      shouldScaleUp = cpu >= high || mem >= high;
+      shouldScaleDown = cpu <= low && mem <= low;
+    } else {
+      const v = Number(currentValue);
+      shouldScaleUp = v >= high;
+      shouldScaleDown = v <= low;
+    }
+
+    if (shouldScaleUp) {
       await scaleUp(instanceId, policy, currentValue);
-    } else if (currentValue <= low) {
+    } else if (shouldScaleDown) {
       await scaleDown(instanceId, policy, currentValue);
     }
   }

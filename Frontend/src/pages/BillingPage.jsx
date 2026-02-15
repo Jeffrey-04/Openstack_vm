@@ -11,10 +11,35 @@ export default function BillingPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState(null);
   const [payingId, setPayingId] = useState(null);
+  const [preferences, setPreferences] = useState(null);
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsForm, setPrefsForm] = useState({
+    paymentMode: 'manual',
+    cardNumber: '',
+    cardExpiry: '',
+    cardCvv: '',
+    brand: 'TEST'
+  });
 
   useEffect(() => {
     loadInvoices();
+    loadPreferences();
   }, []);
+
+  const loadPreferences = async () => {
+    try {
+      const res = await apiService.getBillingPreferences();
+      if (res.preferences) {
+        setPreferences(res.preferences);
+        setPrefsForm((prev) => ({
+          ...prev,
+          paymentMode: res.preferences.paymentMode || 'manual'
+        }));
+      }
+    } catch (err) {
+      console.error('Load preferences:', err);
+    }
+  };
 
   useEffect(() => {
     if (!selectedId) {
@@ -95,6 +120,28 @@ export default function BillingPage() {
     return map[status] || '';
   };
 
+  const handleSavePreferences = async () => {
+    try {
+      setPrefsSaving(true);
+      await apiService.updateBillingPreferences({
+        paymentMode: prefsForm.paymentMode,
+        card: prefsForm.paymentMode === 'auto' ? {
+          cardNumber: prefsForm.cardNumber,
+          cardExpiry: prefsForm.cardExpiry,
+          cardCvv: prefsForm.cardCvv,
+          brand: prefsForm.brand || 'TEST'
+        } : undefined
+      });
+      await loadPreferences();
+      toast.success('Préférences enregistrées.');
+    } catch (err) {
+      console.error('Save preferences:', err);
+      toast.error(err.response?.data?.error?.message || 'Erreur lors de l’enregistrement.');
+    } finally {
+      setPrefsSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="billing-page">
@@ -122,6 +169,82 @@ export default function BillingPage() {
         <h2 className="billing-title">Facturation</h2>
         <p className="billing-subtitle">Consultez et téléchargez vos factures.</p>
       </div>
+
+      <section className="billing-card" style={{ marginBottom: '1.5rem' }}>
+        <h3 className="billing-card-title">Préférences de paiement</h3>
+        <div className="billing-preferences">
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Mode de règlement</label>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  checked={prefsForm.paymentMode === 'manual'}
+                  onChange={() => setPrefsForm((p) => ({ ...p, paymentMode: 'manual' }))}
+                />
+                Manuel (je paie chaque facture à la main)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  checked={prefsForm.paymentMode === 'auto'}
+                  onChange={() => setPrefsForm((p) => ({ ...p, paymentMode: 'auto' }))}
+                />
+                Automatique (débit quotidien)
+              </label>
+            </div>
+          </div>
+          {prefsForm.paymentMode === 'auto' && (
+            <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: 8, marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                Carte de paiement (fictive, environnement TEST)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', maxWidth: 400 }}>
+                <input
+                  type="text"
+                  placeholder="Numéro (ex: 4242424242424242)"
+                  value={prefsForm.cardNumber}
+                  onChange={(e) => setPrefsForm((p) => ({ ...p, cardNumber: e.target.value }))}
+                  className="billing-input"
+                  maxLength={19}
+                />
+                <input
+                  type="text"
+                  placeholder="MM/AA"
+                  value={prefsForm.cardExpiry}
+                  onChange={(e) => setPrefsForm((p) => ({ ...p, cardExpiry: e.target.value }))}
+                  className="billing-input"
+                  maxLength={5}
+                />
+                <input
+                  type="text"
+                  placeholder="CVV"
+                  value={prefsForm.cardCvv}
+                  onChange={(e) => setPrefsForm((p) => ({ ...p, cardCvv: e.target.value }))}
+                  className="billing-input"
+                  maxLength={4}
+                  style={{ width: 80 }}
+                />
+              </div>
+              {preferences?.card?.hasCard && (
+                <div style={{ fontSize: '0.875rem', color: '#059669', marginTop: '0.5rem' }}>
+                  Carte enregistrée (•••• {preferences.card.last4}) {preferences.card.isTest && '(TEST)'}
+                </div>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            className="billing-btn billing-btn-pay"
+            onClick={handleSavePreferences}
+            disabled={prefsSaving}
+          >
+            {prefsSaving ? 'Enregistrement…' : 'Enregistrer les préférences'}
+          </button>
+        </div>
+      </section>
 
       <div className="billing-grid">
         <section className="billing-list-card billing-card">

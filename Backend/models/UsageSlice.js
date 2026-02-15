@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const Invoice = sequelize.define('Invoice', {
+const UsageSlice = sequelize.define('UsageSlice', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -14,60 +14,49 @@ const Invoice = sequelize.define('Invoice', {
     onDelete: 'CASCADE',
     field: 'user_id'
   },
-  invoiceNumber: {
-    type: DataTypes.STRING(32),
+  instanceId: {
+    type: DataTypes.STRING(64),
     allowNull: false,
-    unique: true,
-    field: 'invoice_number'
+    field: 'instance_id'
   },
-  periodStart: {
+  sliceStart: {
     type: DataTypes.DATE,
     allowNull: false,
-    field: 'period_start'
+    field: 'slice_start'
   },
-  periodEnd: {
+  sliceEnd: {
     type: DataTypes.DATE,
     allowNull: false,
-    field: 'period_end'
+    field: 'slice_end'
   },
-  totalAmount: {
-    type: DataTypes.DECIMAL(12, 2),
+  amount: {
+    type: DataTypes.DECIMAL(12, 4),
     allowNull: false,
     defaultValue: 0,
-    field: 'total_amount'
+    field: 'amount'
   },
   currency: {
     type: DataTypes.STRING(3),
     allowNull: false,
     defaultValue: 'XAF'
   },
-  status: {
-    type: DataTypes.ENUM('draft', 'pending', 'paid', 'cancelled'),
-    allowNull: false,
-    defaultValue: 'pending'
-  },
-  generatedAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
-    field: 'generated_at'
+  invoiceId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: { model: 'invoices', key: 'id' },
+    onDelete: 'SET NULL',
+    field: 'invoice_id'
   },
   createdAt: {
     type: DataTypes.DATE,
     allowNull: false,
     defaultValue: DataTypes.NOW,
     field: 'created_at'
-  },
-  updatedAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
-    field: 'updated_at'
   }
 }, {
-  tableName: 'invoices',
+  tableName: 'usage_slices',
   underscored: true,
-  timestamps: true
+  timestamps: false
 });
 
-module.exports = Invoice;
+module.exports = UsageSlice;

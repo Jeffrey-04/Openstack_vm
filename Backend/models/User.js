@@ -28,6 +28,12 @@ const User = sequelize.define('User', {
     allowNull: false,
     defaultValue: 'client'
   },
+  paymentMode: {
+    type: DataTypes.ENUM('manual', 'auto'),
+    allowNull: false,
+    defaultValue: 'manual',
+    field: 'payment_mode'
+  },
   createdAt: {
     type: DataTypes.DATE,
     allowNull: false,

@@ -6,6 +6,13 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { testConnection, syncDatabase } = require('./models');
+const { runThirtyMinuteBillingJob, runDailyPaymentJob } = require('./services/billingEngine');
+const { MetricsMonitor } = require('./services/metricsMonitor');
+const { AutoScaler } = require('./services/autoScaler');
+
+const BILLING_JOB_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const DAILY_PAYMENT_JOB_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const SCALING_CHECK_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 
 const app = express();
 
@@ -50,14 +57,18 @@ const flavorRoutes = require('./routes/flavors');
 const imageRoutes = require('./routes/images');
 const invoicesRoutes = require('./routes/invoices');
 const pricingRulesRoutes = require('./routes/pricingRules');
+const adminRoutes = require('./routes/admin');
+const vmTemplatesRoutes = require('./routes/vmTemplates');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/openstack', openstackRoutes);
 app.use('/api/vms', vmRoutes);
+app.use('/api/vm-templates', vmTemplatesRoutes);
 app.use('/api/flavors', flavorRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/pricing-rules', pricingRulesRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -99,6 +110,28 @@ const startServer = async () => {
   }
   await syncDatabase();
   if (process.env.NODE_ENV === 'test') return;
+
+  // 30-min billing job: run for last slice, then every 30 min
+  runThirtyMinuteBillingJob().then((r) => {
+    if (r.invoicesCreated > 0) {
+      console.log(`Billing job: ${r.invoicesCreated} invoice(s) created for last slice.`);
+    }
+  }).catch((err) => console.error('Billing job error:', err.message));
+  setInterval(() => {
+    runThirtyMinuteBillingJob().catch((err) => console.error('Billing job error:', err.message));
+  }, BILLING_JOB_INTERVAL_MS);
+
+  runDailyPaymentJob().catch((err) => console.error('Daily payment job error:', err.message));
+  setInterval(() => {
+    runDailyPaymentJob().catch((err) => console.error('Daily payment job error:', err.message));
+  }, DAILY_PAYMENT_JOB_INTERVAL_MS);
+
+  const metricsMonitor = new MetricsMonitor();
+  metricsMonitor.attach(new AutoScaler());
+  setInterval(() => {
+    metricsMonitor.checkThresholds().catch((err) => console.error('Scaling check error:', err.message));
+  }, SCALING_CHECK_INTERVAL_MS);
+
   app.listen(PORT, () => {
     console.log(`
 ╔════════════════════════════════════════════╗

@@ -19,6 +19,8 @@ import PlaceholderPage from './pages/PlaceholderPage';
 import BillingPage from './pages/BillingPage';
 import SettingsPage from './pages/SettingsPage';
 import OffersLanding from './pages/OffersLanding';
+import AdminVmTemplates from './pages/admin/AdminVmTemplates';
+import AdminScaleUpRule from './pages/admin/AdminScaleUpRule';
 
 function Navigation() {
   const location = useLocation();
@@ -123,6 +125,8 @@ function AppContent() {
             <Route index element={<AdminDashboard />} />
             <Route path="vms" element={<AdminDashboard />} />
             <Route path="create" element={<CreateVM />} />
+            <Route path="vm-templates" element={<AdminVmTemplates />} />
+            <Route path="scale-up-rule" element={<AdminScaleUpRule />} />
             <Route path="users" element={<PlaceholderPage title="Utilisateurs" message="La gestion des utilisateurs sera disponible prochainement." />} />
             <Route path="billing" element={<BillingPage />} />
             <Route path="settings" element={<SettingsPage />} />

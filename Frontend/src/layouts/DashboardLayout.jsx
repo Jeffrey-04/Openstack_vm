@@ -17,6 +17,8 @@ const ADMIN_SIDEBAR_ITEMS = [
   { label: 'Overview', path: '/admin', icon: '◉' },
   { label: 'VMs', path: '/admin/vms', icon: '▣' },
   { label: 'Créer une VM', path: '/admin/create', icon: '⊕' },
+  { label: 'Modèles VM', path: '/admin/vm-templates', icon: '📦' },
+  { label: 'Règle scale up', path: '/admin/scale-up-rule', icon: '📈' },
   { label: 'Utilisateurs', path: '/admin/users', icon: '◐' },
   { label: 'Facturation', path: '/admin/billing', icon: '◈' },
   { label: 'Paramètres', path: '/admin/settings', icon: '⚙' },
@@ -24,12 +26,12 @@ const ADMIN_SIDEBAR_ITEMS = [
 
 const TITLE_MAP = {
   client: { '': ['Overview', 'VPS - VM Marketplace - Overview'], vms: ['Mes VMs', 'VPS - Mes machines'], marketplace: ['Marketplace', 'VPS - Offres'], create: ['Créer une VM', 'VPS - Nouvelle machine'], settings: ['Paramètres', 'VPS - Paramètres'], billing: ['Facturation', 'VPS - Facturation'] },
-  admin: { '': ['Overview', 'Admin - VM Marketplace - Overview'], vms: ['VMs', 'Admin - Liste des VMs'], create: ['Créer une VM', 'Admin - Nouvelle machine'], users: ['Utilisateurs', 'Admin - Utilisateurs'], billing: ['Facturation', 'Admin - Facturation'], settings: ['Paramètres', 'Admin - Paramètres'] },
+  admin: { '': ['Overview', 'Admin - VM Marketplace - Overview'], vms: ['VMs', 'Admin - Liste des VMs'], create: ['Créer une VM', 'Admin - Nouvelle machine'], 'vm-templates': ['Modèles VM', 'Admin - Modèles VM'], 'scale-up-rule': ['Règle scale up', 'Admin - Scale up'], users: ['Utilisateurs', 'Admin - Utilisateurs'], billing: ['Facturation', 'Admin - Facturation'], settings: ['Paramètres', 'Admin - Paramètres'] },
 };
 
 const SEGMENT_LABELS = {
   client: { '': 'Overview', vms: 'Mes VMs', marketplace: 'Marketplace', create: 'Créer une VM', settings: 'Paramètres', billing: 'Facturation' },
-  admin: { '': 'Overview', vms: 'VMs', create: 'Créer une VM', users: 'Utilisateurs', billing: 'Facturation', settings: 'Paramètres' },
+  admin: { '': 'Overview', vms: 'VMs', create: 'Créer une VM', 'vm-templates': 'Modèles VM', 'scale-up-rule': 'Règle scale up', users: 'Utilisateurs', billing: 'Facturation', settings: 'Paramètres' },
 };
 
 export default function DashboardLayout({ type = 'client' }) {

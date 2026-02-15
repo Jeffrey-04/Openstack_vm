@@ -4,19 +4,31 @@ import apiService from '../services/api';
 import toast from 'react-hot-toast';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
+const VM_MODE_TEMPLATE = 'template';
+const VM_MODE_CUSTOM = 'custom';
+
 function CreateVM() {
   const navigate = useNavigate();
   const location = useLocation();
   const selectedFlavorFromMarketplace = location.state?.selectedFlavor;
   const isClient = location.pathname.startsWith('/client');
   const isAdmin = location.pathname.startsWith('/admin');
+  const [mode, setMode] = useState(VM_MODE_TEMPLATE);
   const [formData, setFormData] = useState({
     name: '',
+    templateId: '',
     flavorRef: selectedFlavorFromMarketplace?.id || '',
     imageRef: '',
-    networkId: ''
+    networkId: '',
+    vcpus: 2,
+    ramGb: 2,
+    diskGb: 20,
+    thresholdHigh: 80,
+    thresholdLow: 20,
+    scalingEnabled: true
   });
 
+  const [templates, setTemplates] = useState([]);
   const [flavors, setFlavors] = useState([]);
   const [images, setImages] = useState([]);
   const [networks, setNetworks] = useState([]);
@@ -33,22 +45,22 @@ function CreateVM() {
       setLoading(true);
       setError(null);
 
-      const [flavorsResult, imagesResult, networksResult] = await Promise.all([
+      const [templatesResult, flavorsResult, imagesResult, networksResult] = await Promise.all([
+        apiService.getVmTemplates().catch(() => ({ templates: [] })),
         apiService.getFlavors(),
         apiService.getImages(),
         apiService.getNetworks()
       ]);
 
+      setTemplates(templatesResult.templates || []);
       setFlavors(flavorsResult.flavors || []);
       setImages(imagesResult.images || []);
       setNetworks(networksResult.networks || []);
 
-      // Auto-select first private network if available
       const privateNetwork = networksResult.networks?.find(n => n.name === 'private' || !n['router:external']);
       if (privateNetwork && !formData.networkId) {
         setFormData(prev => ({ ...prev, networkId: privateNetwork.id }));
       }
-
     } catch (err) {
       console.error('Error loading resources:', err);
       setError('Impossible de charger les ressources');
@@ -68,21 +80,56 @@ function CreateVM() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.flavorRef || !formData.imageRef) {
-      toast.error('Veuillez remplir tous les champs requis');
+    if (!formData.name) {
+      toast.error('Le nom de la VM est requis');
       return;
+    }
+    if (mode === VM_MODE_TEMPLATE && !formData.templateId) {
+      toast.error('Choisissez un modèle préconfiguré');
+      return;
+    }
+    if (mode === VM_MODE_CUSTOM && !formData.imageRef) {
+      toast.error('Choisissez une image pour la VM sur mesure');
+      return;
+    }
+    if (mode !== VM_MODE_TEMPLATE && mode !== VM_MODE_CUSTOM) {
+      if (!formData.flavorRef || !formData.imageRef) {
+        toast.error('Veuillez remplir tous les champs requis');
+        return;
+      }
+    }
+
+    const payload = {
+      name: formData.name,
+      networkId: formData.networkId || undefined
+    };
+    if (mode === VM_MODE_TEMPLATE) {
+      payload.templateId = formData.templateId;
+    } else if (mode === VM_MODE_CUSTOM) {
+      payload.vcpus = Number(formData.vcpus) || 1;
+      payload.ramGb = Number(formData.ramGb) || 1;
+      payload.diskGb = Number(formData.diskGb) || 20;
+      payload.imageRef = formData.imageRef;
+    } else {
+      payload.flavorRef = formData.flavorRef;
+      payload.imageRef = formData.imageRef;
+    }
+    if (formData.scalingEnabled) {
+      payload.scaling = {
+        thresholdHigh: Number(formData.thresholdHigh) || 80,
+        thresholdLow: Number(formData.thresholdLow) || 20,
+        metricType: 'cpu_and_memory'
+      };
     }
 
     try {
       setCreating(true);
       setError(null);
-
-      await apiService.createVM(formData);
+      await apiService.createVM(payload);
       toast.success('VM créée avec succès. Elle sera prête dans quelques minutes.');
       if (isClient) navigate('/client/vms');
       else if (isAdmin) navigate('/admin/vms');
       else navigate('/my-vms');
-
     } catch (err) {
       console.error('Error creating VM:', err);
       const msg = err.response?.data?.error?.message || 'Erreur lors de la création de la VM';
@@ -91,6 +138,10 @@ function CreateVM() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const getSelectedTemplate = () => {
+    return templates.find(t => t.id === formData.templateId);
   };
 
   const getSelectedFlavor = () => {
@@ -138,6 +189,30 @@ function CreateVM() {
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
+              <label className="form-label">Type de VM</label>
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="radio"
+                    name="mode"
+                    checked={mode === VM_MODE_TEMPLATE}
+                    onChange={() => setMode(VM_MODE_TEMPLATE)}
+                  />
+                  Préconfigurée (modèle)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="radio"
+                    name="mode"
+                    checked={mode === VM_MODE_CUSTOM}
+                    onChange={() => setMode(VM_MODE_CUSTOM)}
+                  />
+                  Sur mesure (vCPU / RAM / disque)
+                </label>
+              </div>
+            </div>
+
+            <div className="form-group">
               <label className="form-label">
                 📝 Nom de la VM <span style={{ color: 'red' }}>*</span>
               </label>
@@ -152,63 +227,138 @@ function CreateVM() {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                💿 Image Système <span style={{ color: 'red' }}>*</span>
-              </label>
-              <select
-                name="imageRef"
-                value={formData.imageRef}
-                onChange={handleChange}
-                className="form-control"
-                required
-              >
-                <option value="">-- Choisir une image --</option>
-                {images.map(image => (
-                  <option key={image.id} value={image.id}>
-                    {image.name} {image.size ? `(${(image.size / 1024 / 1024).toFixed(0)} MB)` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {mode === VM_MODE_TEMPLATE && (
+              <div className="form-group">
+                <label className="form-label">
+                  📦 Modèle préconfiguré <span style={{ color: 'red' }}>*</span>
+                </label>
+                <select
+                  name="templateId"
+                  value={formData.templateId}
+                  onChange={handleChange}
+                  className="form-control"
+                  required={mode === VM_MODE_TEMPLATE}
+                >
+                  <option value="">-- Choisir un modèle --</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} {t.description ? `– ${t.description}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {templates.length === 0 && (
+                  <small style={{ color: '#6b7280' }}>Aucun modèle. Utilisez « Sur mesure » ou demandez à l’admin d’en créer.</small>
+                )}
+              </div>
+            )}
+
+            {mode === VM_MODE_CUSTOM && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">vCPUs</label>
+                  <input
+                    type="number"
+                    name="vcpus"
+                    min={1}
+                    value={formData.vcpus}
+                    onChange={handleChange}
+                    className="form-control"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">RAM (Go)</label>
+                  <input
+                    type="number"
+                    name="ramGb"
+                    min={1}
+                    value={formData.ramGb}
+                    onChange={handleChange}
+                    className="form-control"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Disque (Go)</label>
+                  <input
+                    type="number"
+                    name="diskGb"
+                    min={1}
+                    value={formData.diskGb}
+                    onChange={handleChange}
+                    className="form-control"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    💿 Image <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <select
+                    name="imageRef"
+                    value={formData.imageRef}
+                    onChange={handleChange}
+                    className="form-control"
+                    required={mode === VM_MODE_CUSTOM}
+                  >
+                    <option value="">-- Choisir une image --</option>
+                    {images.map(image => (
+                      <option key={image.id} value={image.id}>
+                        {image.name} {image.size ? `(${(image.size / 1024 / 1024).toFixed(0)} MB)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
 
             <div className="form-group">
-              <label className="form-label">
-                ⚙️ Configuration (Flavor) <span style={{ color: 'red' }}>*</span>
-              </label>
-              <select
-                name="flavorRef"
-                value={formData.flavorRef}
-                onChange={handleChange}
-                className="form-control"
-                required
-              >
-                <option value="">-- Choisir une configuration --</option>
-                {flavors.map(flavor => (
-                  <option key={flavor.id} value={flavor.id}>
-                    {flavor.name} - {flavor.vcpus} vCPU, {formatRAM(flavor.ram)}, {flavor.disk}GB - ${flavor.price}/mois
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                🌐 Réseau
-              </label>
-              <select
-                name="networkId"
-                value={formData.networkId}
-                onChange={handleChange}
-                className="form-control"
-              >
-                <option value="">-- Auto (réseau par défaut) --</option>
+              <label className="form-label">🌐 Réseau</label>
+              <select name="networkId" value={formData.networkId} onChange={handleChange} className="form-control">
+                <option value="">-- Auto --</option>
                 {networks.map(network => (
                   <option key={network.id} value={network.id}>
                     {network.name} {network['router:external'] ? '(Public)' : '(Privé)'}
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="card" style={{ marginTop: '1.5rem', padding: '1rem', background: '#f9fafb' }}>
+              <h3 style={{ marginBottom: '0.75rem' }}>📈 Mise à l’échelle (scaling)</h3>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <input
+                  type="checkbox"
+                  checked={formData.scalingEnabled}
+                  onChange={(e) => setFormData(prev => ({ ...prev, scalingEnabled: e.target.checked }))}
+                />
+                Activer le scaling automatique (CPU et mémoire)
+              </label>
+              {formData.scalingEnabled && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Scale up si utilisation &gt; (%)</label>
+                    <input
+                      type="number"
+                      name="thresholdHigh"
+                      min={1}
+                      max={100}
+                      value={formData.thresholdHigh}
+                      onChange={handleChange}
+                      className="form-control"
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Scale down si utilisation &lt; (%)</label>
+                    <input
+                      type="number"
+                      name="thresholdLow"
+                      min={0}
+                      max={100}
+                      value={formData.thresholdLow}
+                      onChange={handleChange}
+                      className="form-control"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
@@ -241,39 +391,37 @@ function CreateVM() {
               <div style={{ fontWeight: 'bold' }}>{formData.name || 'Non spécifié'}</div>
             </div>
 
+            {mode === VM_MODE_TEMPLATE && getSelectedTemplate() && (
             <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px', marginBottom: '0.75rem' }}>
-              <div style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Image</div>
-              <div style={{ fontWeight: 'bold' }}>{getSelectedImage()?.name || 'Non sélectionnée'}</div>
+              <div style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Modèle</div>
+              <div style={{ fontWeight: 'bold' }}>{getSelectedTemplate().name}</div>
+              {getSelectedTemplate().description && (
+                <div style={{ fontSize: '0.875rem', color: '#4b5563', marginTop: '0.25rem' }}>{getSelectedTemplate().description}</div>
+              )}
             </div>
+            )}
 
-            {getSelectedFlavor() && (
+            {mode === VM_MODE_CUSTOM && (
               <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px', marginBottom: '0.75rem' }}>
-                <div style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Configuration</div>
-                <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{getSelectedFlavor().name}</div>
+                <div style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Sur mesure</div>
                 <div style={{ fontSize: '0.875rem', color: '#4b5563' }}>
-                  <div>💾 RAM: {formatRAM(getSelectedFlavor().ram)}</div>
-                  <div>⚡ vCPUs: {getSelectedFlavor().vcpus}</div>
-                  <div>💿 Disque: {getSelectedFlavor().disk} GB</div>
+                  <div>⚡ vCPUs: {formData.vcpus}</div>
+                  <div>💾 RAM: {formData.ramGb} Go</div>
+                  <div>💿 Disque: {formData.diskGb} Go</div>
+                  <div>Image: {getSelectedImage()?.name || 'À choisir'}</div>
                 </div>
               </div>
             )}
-          </div>
 
-          {getSelectedFlavor() && (
-            <div style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              padding: '1.5rem',
-              borderRadius: '8px',
-              textAlign: 'center',
-              color: 'white'
-            }}>
-              <div style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>Coût estimé</div>
-              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                ${getSelectedFlavor().price}
+            <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px', marginBottom: '0.75rem' }}>
+              <div style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Scaling</div>
+              <div style={{ fontWeight: 'bold' }}>
+                {formData.scalingEnabled
+                  ? `Scale up &gt; ${formData.thresholdHigh}% · Scale down &lt; ${formData.thresholdLow}%`
+                  : 'Désactivé'}
               </div>
-              <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>par mois</div>
             </div>
-          )}
+          </div>
 
           <div className="alert alert-info" style={{ marginTop: '1.5rem' }}>
             <strong>ℹ️ Info:</strong> Votre VM sera prête dans 2-5 minutes après la création.

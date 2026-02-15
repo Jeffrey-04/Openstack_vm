@@ -7,6 +7,11 @@ const ScalingPolicy = require('./ScalingPolicy');
 const ScalingEvent = require('./ScalingEvent');
 const ResourceUsage = require('./ResourceUsage');
 const PricingRule = require('./PricingRule');
+const VmRuntime = require('./VmRuntime');
+const VMTemplate = require('./VMTemplate');
+const GlobalScaleUpRule = require('./GlobalScaleUpRule');
+const PaymentMethod = require('./PaymentMethod');
+const UsageSlice = require('./UsageSlice');
 
 // Associations
 User.hasMany(VM, { foreignKey: 'userId' });
@@ -19,6 +24,17 @@ Invoice.belongsTo(User, { foreignKey: 'userId', as: 'User' });
 Invoice.hasMany(InvoiceItem, { foreignKey: 'invoiceId', as: 'InvoiceItems' });
 InvoiceItem.belongsTo(Invoice, { foreignKey: 'invoiceId' });
 
+User.hasMany(VmRuntime, { foreignKey: 'userId' });
+VmRuntime.belongsTo(User, { foreignKey: 'userId' });
+
+User.hasMany(PaymentMethod, { foreignKey: 'userId' });
+PaymentMethod.belongsTo(User, { foreignKey: 'userId' });
+
+User.hasMany(UsageSlice, { foreignKey: 'userId' });
+UsageSlice.belongsTo(User, { foreignKey: 'userId' });
+Invoice.hasMany(UsageSlice, { foreignKey: 'invoiceId' });
+UsageSlice.belongsTo(Invoice, { foreignKey: 'invoiceId' });
+
 const models = {
   User,
   VM,
@@ -27,7 +43,12 @@ const models = {
   ScalingPolicy,
   ScalingEvent,
   ResourceUsage,
-  PricingRule
+  PricingRule,
+  VmRuntime,
+  VMTemplate,
+  GlobalScaleUpRule,
+  PaymentMethod,
+  UsageSlice
 };
 
 const syncDatabase = async (options = { alter: true }) => {
@@ -47,5 +68,10 @@ module.exports = {
   ScalingPolicy,
   ScalingEvent,
   ResourceUsage,
-  PricingRule
+  PricingRule,
+  VmRuntime,
+  VMTemplate,
+  GlobalScaleUpRule,
+  PaymentMethod,
+  UsageSlice
 };

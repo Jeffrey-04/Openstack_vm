@@ -1,8 +1,20 @@
 const { ScalingPolicy, ScalingEvent, ResourceUsage, VM } = require('../models');
 const { Op } = require('sequelize');
 
+async function ensureVmOwnership(req, res) {
+  const vm = await VM.findOne({
+    where: { instanceId: req.params.id, userId: req.userId }
+  });
+  if (!vm) {
+    res.status(404).json({ error: { message: 'VM not found', status: 404 } });
+    return null;
+  }
+  return vm;
+}
+
 async function getScalingPolicy(req, res, next) {
   try {
+    if (await ensureVmOwnership(req, res) === null) return;
     const instanceId = req.params.id;
     const policy = await ScalingPolicy.findOne({
       where: { instanceId, isActive: true }
@@ -22,7 +34,8 @@ async function getScalingPolicy(req, res, next) {
         thresholdLow: Number(policy.thresholdLow),
         actionType: policy.actionType,
         isActive: policy.isActive,
-        cooldownMinutes: policy.cooldownMinutes
+        cooldownMinutes: policy.cooldownMinutes,
+        baseFlavorId: policy.baseFlavorId || null
       }
     });
   } catch (err) {
@@ -32,8 +45,9 @@ async function getScalingPolicy(req, res, next) {
 
 async function putScalingPolicy(req, res, next) {
   try {
+    if (await ensureVmOwnership(req, res) === null) return;
     const instanceId = req.params.id;
-    const { metricType, thresholdHigh, thresholdLow, isActive, cooldownMinutes } = req.body;
+    const { metricType, thresholdHigh, thresholdLow, isActive, cooldownMinutes, baseFlavorId } = req.body;
     let policy = await ScalingPolicy.findOne({ where: { instanceId } });
     if (policy) {
       await policy.update({
@@ -41,7 +55,8 @@ async function putScalingPolicy(req, res, next) {
         thresholdHigh: thresholdHigh ?? policy.thresholdHigh,
         thresholdLow: thresholdLow ?? policy.thresholdLow,
         isActive: isActive !== undefined ? isActive : policy.isActive,
-        cooldownMinutes: cooldownMinutes ?? policy.cooldownMinutes
+        cooldownMinutes: cooldownMinutes ?? policy.cooldownMinutes,
+        ...(baseFlavorId !== undefined && { baseFlavorId })
       });
     } else {
       policy = await ScalingPolicy.create({
@@ -50,7 +65,8 @@ async function putScalingPolicy(req, res, next) {
         thresholdHigh: thresholdHigh ?? 80,
         thresholdLow: thresholdLow ?? 20,
         isActive: isActive !== false,
-        cooldownMinutes: cooldownMinutes ?? 5
+        cooldownMinutes: cooldownMinutes ?? 5,
+        baseFlavorId: baseFlavorId || null
       });
     }
     res.json({
@@ -62,7 +78,8 @@ async function putScalingPolicy(req, res, next) {
         thresholdHigh: Number(policy.thresholdHigh),
         thresholdLow: Number(policy.thresholdLow),
         isActive: policy.isActive,
-        cooldownMinutes: policy.cooldownMinutes
+        cooldownMinutes: policy.cooldownMinutes,
+        baseFlavorId: policy.baseFlavorId || null
       }
     });
   } catch (err) {
@@ -72,11 +89,9 @@ async function putScalingPolicy(req, res, next) {
 
 async function getMetrics(req, res, next) {
   try {
+    const vm = await ensureVmOwnership(req, res);
+    if (vm === null) return;
     const instanceId = req.params.id;
-    const vm = await VM.findOne({ where: { instanceId } });
-    if (!vm) {
-      return res.json({ success: true, metrics: [], instanceId });
-    }
     const usages = await ResourceUsage.findAll({
       where: { vmId: vm.id },
       order: [['timestamp', 'DESC']],
@@ -95,6 +110,7 @@ async function getMetrics(req, res, next) {
 
 async function getScalingHistory(req, res, next) {
   try {
+    if (await ensureVmOwnership(req, res) === null) return;
     const instanceId = req.params.id;
     const events = await ScalingEvent.findAll({
       where: { instanceId },

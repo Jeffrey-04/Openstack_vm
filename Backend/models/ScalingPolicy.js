@@ -49,6 +49,12 @@ const ScalingPolicy = sequelize.define('ScalingPolicy', {
     defaultValue: 5,
     field: 'cooldown_minutes'
   },
+  baseFlavorId: {
+    type: DataTypes.STRING(64),
+    allowNull: true,
+    comment: 'Flavor to revert to on scale down',
+    field: 'base_flavor_id'
+  },
   createdAt: {
     type: DataTypes.DATE,
     allowNull: false,

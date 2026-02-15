@@ -80,6 +80,20 @@ export const apiService = {
     return response.data;
   },
 
+  async getVmTemplates() {
+    const response = await axiosInstance.get(API.ENDPOINTS.VM_TEMPLATES);
+    return response.data;
+  },
+
+  async getVmScalingPolicy(vmId) {
+    const response = await axiosInstance.get(API.ENDPOINTS.VM_SCALING_POLICY(vmId));
+    return response.data;
+  },
+  async putVmScalingPolicy(vmId, policy) {
+    const response = await axiosInstance.put(API.ENDPOINTS.VM_SCALING_POLICY(vmId), policy);
+    return response.data;
+  },
+
   async deleteVM(id) {
     const response = await axiosInstance.delete(API.ENDPOINTS.VM_BY_ID(id));
     return response.data;
@@ -158,6 +172,40 @@ export const apiService = {
   },
   async getPricingRules() {
     const response = await axiosInstance.get(API.ENDPOINTS.PRICING_RULES);
+    return response.data;
+  },
+  async getBillingPreferences() {
+    const response = await axiosInstance.get(API.ENDPOINTS.INVOICE_PREFERENCES);
+    return response.data;
+  },
+  async updateBillingPreferences(preferences) {
+    const response = await axiosInstance.put(API.ENDPOINTS.INVOICE_PREFERENCES, preferences);
+    return response.data;
+  },
+
+  // Admin
+  async getAdminVmTemplates() {
+    const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_VM_TEMPLATES);
+    return response.data;
+  },
+  async createAdminVmTemplate(data) {
+    const response = await axiosInstance.post(API.ENDPOINTS.ADMIN_VM_TEMPLATES, data);
+    return response.data;
+  },
+  async updateAdminVmTemplate(id, data) {
+    const response = await axiosInstance.put(API.ENDPOINTS.ADMIN_VM_TEMPLATE_BY_ID(id), data);
+    return response.data;
+  },
+  async deleteAdminVmTemplate(id) {
+    const response = await axiosInstance.delete(API.ENDPOINTS.ADMIN_VM_TEMPLATE_BY_ID(id));
+    return response.data;
+  },
+  async getAdminScaleUpRule() {
+    const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_SCALE_UP_RULE);
+    return response.data;
+  },
+  async putAdminScaleUpRule(data) {
+    const response = await axiosInstance.put(API.ENDPOINTS.ADMIN_SCALE_UP_RULE, data);
     return response.data;
   },
 };

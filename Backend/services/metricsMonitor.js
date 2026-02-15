@@ -44,10 +44,25 @@ class MetricsMonitor {
   async checkThresholds() {
     const policies = await ScalingPolicy.findAll({ where: { isActive: true } });
     for (const policy of policies) {
-      const value = await this.getCurrentMetricByInstanceId(policy.instanceId, policy.metricType);
-      if (value == null) continue;
       const high = Number(policy.thresholdHigh);
       const low = Number(policy.thresholdLow);
+
+      if (policy.metricType === 'cpu_and_memory') {
+        const cpu = await this.getCurrentMetricByInstanceId(policy.instanceId, 'cpu_util');
+        const mem = await this.getCurrentMetricByInstanceId(policy.instanceId, 'memory_usage');
+        if (cpu == null && mem == null) continue;
+        const cpuVal = cpu != null ? cpu : 0;
+        const memVal = mem != null ? mem : 0;
+        const scaleUp = cpuVal >= high || memVal >= high;
+        const scaleDown = (cpu != null && mem != null) && cpuVal <= low && memVal <= low;
+        if (scaleUp || scaleDown) {
+          await this.notify(policy.instanceId, 'cpu_and_memory', { cpu_util: cpuVal, memory_usage: memVal }, policy);
+        }
+        continue;
+      }
+
+      const value = await this.getCurrentMetricByInstanceId(policy.instanceId, policy.metricType);
+      if (value == null) continue;
       if (value >= high || value <= low) {
         await this.notify(policy.instanceId, policy.metricType, value, policy);
       }
