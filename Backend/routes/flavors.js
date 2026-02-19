@@ -13,7 +13,7 @@ const PRICING = {
   'm1.xlarge': 100
 };
 
-// List all flavors with pricing
+// List all flavors with pricing (empty list if OpenStack unavailable)
 router.get('/', async (req, res, next) => {
   try {
     logger.info('Flavors: list');
@@ -34,7 +34,13 @@ router.get('/', async (req, res, next) => {
     });
   } catch (error) {
     logger.error('Flavors list:', error.message);
-    next(error);
+    // OpenStack non disponible : renvoyer liste vide pour ne pas casser l'UI
+    res.json({
+      success: true,
+      count: 0,
+      flavors: [],
+      _message: 'OpenStack non disponible (flavors vides)'
+    });
   }
 });
 

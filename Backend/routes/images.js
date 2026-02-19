@@ -3,7 +3,7 @@ const router = express.Router();
 const openstack = require('../config/openstack');
 const logger = require('../utils/logger');
 
-// List all images
+// List all images (empty list if OpenStack unavailable)
 router.get('/', async (req, res, next) => {
   try {
     logger.info('Images: list');
@@ -29,7 +29,13 @@ router.get('/', async (req, res, next) => {
     });
   } catch (error) {
     logger.error('Images list:', error.message);
-    next(error);
+    // OpenStack non disponible : renvoyer liste vide pour ne pas casser l'UI
+    res.json({
+      success: true,
+      count: 0,
+      images: [],
+      _message: 'OpenStack non disponible (images vides)'
+    });
   }
 });
 
