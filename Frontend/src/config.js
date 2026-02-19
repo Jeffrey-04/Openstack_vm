@@ -1,54 +1,37 @@
 // Configuration de l'API
-// En production ou derrière Nginx : utiliser '' pour des URLs relatives (/api/...) proxyfiées par Nginx.
-// En dev local (npm start sur ta machine) : mettre REACT_APP_API_URL=http://localhost:3001 dans .env
+// BASE_URL : origine du backend. Vide = URLs relatives (proxy ou même origine).
+// Les ENDPOINTS sont des chemins relatifs (/api/...) pour éviter la double concat avec axios baseURL.
 const API_BASE_URL = process.env.REACT_APP_API_URL ?? '';
 
 export const API = {
   BASE_URL: API_BASE_URL,
   ENDPOINTS: {
-    // Health check
-    HEALTH: `${API_BASE_URL}/api/health`,
-    
-    // OpenStack
-    OPENSTACK_STATUS: `${API_BASE_URL}/api/openstack/status`,
-    NETWORKS: `${API_BASE_URL}/api/openstack/networks`,
-    FLOATING_IPS: `${API_BASE_URL}/api/openstack/floatingips`,
-    
-// VMs
-    VMS: `${API_BASE_URL}/api/vms`,
-    VM_BY_ID: (id) => `${API_BASE_URL}/api/vms/${id}`,
-    VM_ACTION: (id) => `${API_BASE_URL}/api/vms/${id}/action`,
-    VM_SCALING_POLICY: (id) => `${API_BASE_URL}/api/vms/${id}/scaling-policy`,
-
-    // VM Templates (for preconfigured VM creation)
-    VM_TEMPLATES: `${API_BASE_URL}/api/vm-templates`,
-
-    // Flavors
-    FLAVORS: `${API_BASE_URL}/api/flavors`,
-    FLAVOR_BY_ID: (id) => `${API_BASE_URL}/api/flavors/${id}`,
-    
-    // Images
-    IMAGES: `${API_BASE_URL}/api/images`,
-    IMAGE_BY_ID: (id) => `${API_BASE_URL}/api/images/${id}`,
-
-    // Auth
-    AUTH_REGISTER: `${API_BASE_URL}/api/auth/register`,
-    AUTH_LOGIN: `${API_BASE_URL}/api/auth/login`,
-    AUTH_LOGOUT: `${API_BASE_URL}/api/auth/logout`,
-    AUTH_ME: `${API_BASE_URL}/api/auth/me`,
-
-    // Invoices
-    INVOICES: `${API_BASE_URL}/api/invoices`,
-    INVOICE_BY_ID: (id) => `${API_BASE_URL}/api/invoices/${id}`,
-    INVOICE_DOWNLOAD: (id) => `${API_BASE_URL}/api/invoices/${id}/download`,
-    INVOICE_PAY: (id) => `${API_BASE_URL}/api/invoices/${id}/pay`,
-    INVOICE_PREFERENCES: `${API_BASE_URL}/api/invoices/preferences`,
-    PRICING_RULES: `${API_BASE_URL}/api/pricing-rules`,
-
-    // Admin
-    ADMIN_VM_TEMPLATES: `${API_BASE_URL}/api/admin/vm-templates`,
-    ADMIN_VM_TEMPLATE_BY_ID: (id) => `${API_BASE_URL}/api/admin/vm-templates/${id}`,
-    ADMIN_SCALE_UP_RULE: `${API_BASE_URL}/api/admin/scale-up-rule`,
+    HEALTH: '/api/health',
+    OPENSTACK_STATUS: '/api/openstack/status',
+    NETWORKS: '/api/openstack/networks',
+    FLOATING_IPS: '/api/openstack/floatingips',
+    VMS: '/api/vms',
+    VM_BY_ID: (id) => `/api/vms/${id}`,
+    VM_ACTION: (id) => `/api/vms/${id}/action`,
+    VM_SCALING_POLICY: (id) => `/api/vms/${id}/scaling-policy`,
+    VM_TEMPLATES: '/api/vm-templates',
+    FLAVORS: '/api/flavors',
+    FLAVOR_BY_ID: (id) => `/api/flavors/${id}`,
+    IMAGES: '/api/images',
+    IMAGE_BY_ID: (id) => `/api/images/${id}`,
+    AUTH_REGISTER: '/api/auth/register',
+    AUTH_LOGIN: '/api/auth/login',
+    AUTH_LOGOUT: '/api/auth/logout',
+    AUTH_ME: '/api/auth/me',
+    INVOICES: '/api/invoices',
+    INVOICE_BY_ID: (id) => `/api/invoices/${id}`,
+    INVOICE_DOWNLOAD: (id) => `/api/invoices/${id}/download`,
+    INVOICE_PAY: (id) => `/api/invoices/${id}/pay`,
+    INVOICE_PREFERENCES: '/api/invoices/preferences',
+    PRICING_RULES: '/api/pricing-rules',
+    ADMIN_VM_TEMPLATES: '/api/admin/vm-templates',
+    ADMIN_VM_TEMPLATE_BY_ID: (id) => `/api/admin/vm-templates/${id}`,
+    ADMIN_SCALE_UP_RULE: '/api/admin/scale-up-rule',
   }
 };
 
