@@ -21,11 +21,13 @@ module.exports = {
       env: {
         NODE_ENV: 'development',
         PORT: 3000,
-        REACT_APP_API_URL: '',  // URLs relatives /api/ → Nginx proxy vers le backend
+        HOST: '0.0.0.0',  // écoute sur toutes les interfaces ; évite allowedHosts[0] vide
+        REACT_APP_API_URL: '',  // URLs relatives /api/ → proxy (setupProxy.js) ou Nginx
       },
       env_production: {
         NODE_ENV: 'production',
         PORT: 3000,
+        HOST: '0.0.0.0',
         REACT_APP_API_URL: '',  // idem : même origine, Nginx proxy /api/ vers backend:3001
       },
     },
