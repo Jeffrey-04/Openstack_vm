@@ -301,6 +301,93 @@ async function updateBillingPreferences(req, res, next) {
   }
 }
 
+/**
+ * GET /api/admin/invoices
+ * Liste toutes les factures (admin only) avec filtres, tri et pagination
+ */
+async function listAdminInvoices(req, res, next) {
+  try {
+    const {
+      status,
+      userId,
+      dateFrom,
+      dateTo,
+      sort = 'generatedAt',
+      order = 'DESC',
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const where = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (userId) {
+      where.userId = userId;
+    }
+
+    if (dateFrom || dateTo) {
+      where.generatedAt = {};
+      if (dateFrom) {
+        where.generatedAt[Op.gte] = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        where.generatedAt[Op.lte] = endDate;
+      }
+    }
+
+    const validSortFields = ['generatedAt', 'totalAmount', 'status', 'invoiceNumber'];
+    const sortField = validSortFields.includes(sort) ? sort : 'generatedAt';
+    const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    const { count, rows: invoices } = await Invoice.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset,
+      order: [[sortField, sortOrder]],
+      include: [
+        {
+          model: User,
+          as: 'User',
+          attributes: ['id', 'email', 'name']
+        }
+      ]
+    });
+
+    res.json({
+      success: true,
+      invoices: invoices.map((inv) => ({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        periodStart: inv.periodStart,
+        periodEnd: inv.periodEnd,
+        totalAmount: Number(inv.totalAmount),
+        currency: inv.currency,
+        status: inv.status,
+        generatedAt: inv.generatedAt,
+        user: inv.User ? {
+          id: inv.User.id,
+          email: inv.User.email,
+          name: inv.User.name
+        } : null
+      })),
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        totalPages: Math.ceil(count / parseInt(limit))
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listInvoices,
   getInvoice,
@@ -310,5 +397,6 @@ module.exports = {
   getPricingRules,
   updatePricingRules,
   getBillingPreferences,
-  updateBillingPreferences
+  updateBillingPreferences,
+  listAdminInvoices
 };

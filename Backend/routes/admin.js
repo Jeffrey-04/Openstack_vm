@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
 const { VMTemplate, GlobalScaleUpRule } = require('../models');
+const adminController = require('../controllers/adminController');
+const billingController = require('../controllers/billingController');
 
 router.use(authenticate);
 router.use(requireRole('admin'));
@@ -114,6 +116,15 @@ router.delete('/vm-templates/:id', async (req, res, next) => {
     next(err);
   }
 });
+
+// ---------- Admin Stats ----------
+router.get('/stats', adminController.getStats);
+
+// ---------- Admin Users ----------
+router.get('/users', adminController.listUsers);
+
+// ---------- Admin Invoices (all invoices with filters) ----------
+router.get('/invoices', billingController.listAdminInvoices);
 
 // ---------- Global scale-up rule (single active rule) ----------
 router.get('/scale-up-rule', async (req, res, next) => {

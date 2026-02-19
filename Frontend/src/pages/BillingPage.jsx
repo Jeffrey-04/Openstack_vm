@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import Skeleton from '../components/Skeleton';
 import './BillingPage.css';
 
 export default function BillingPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  
   const [invoices, setInvoices] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -21,10 +26,30 @@ export default function BillingPage() {
     brand: 'TEST'
   });
 
+  // Admin filters
+  const [filters, setFilters] = useState({
+    status: '',
+    userId: '',
+    dateFrom: '',
+    dateTo: '',
+    sort: 'generatedAt',
+    order: 'DESC',
+    page: 1,
+    limit: 20
+  });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+  });
+
   useEffect(() => {
     loadInvoices();
-    loadPreferences();
-  }, []);
+    if (!isAdmin) {
+      loadPreferences();
+    }
+  }, [isAdmin, filters.page, filters.status, filters.sort, filters.order, filters.dateFrom, filters.dateTo, filters.userId]);
 
   const loadPreferences = async () => {
     try {
@@ -66,8 +91,26 @@ export default function BillingPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await apiService.getInvoices();
-      setInvoices(res.invoices || []);
+      let res;
+      if (isAdmin) {
+        res = await apiService.getAdminInvoices({
+          status: filters.status || undefined,
+          userId: filters.userId || undefined,
+          dateFrom: filters.dateFrom || undefined,
+          dateTo: filters.dateTo || undefined,
+          sort: filters.sort,
+          order: filters.order,
+          page: filters.page,
+          limit: filters.limit
+        });
+        setInvoices(res.invoices || []);
+        if (res.pagination) {
+          setPagination(res.pagination);
+        }
+      } else {
+        res = await apiService.getInvoices();
+        setInvoices(res.invoices || []);
+      }
     } catch (err) {
       console.error('Billing load:', err);
       setError('Impossible de charger les factures.');
@@ -145,9 +188,37 @@ export default function BillingPage() {
   if (loading) {
     return (
       <div className="billing-page">
-        <div className="billing-loading">
-          <div className="billing-spinner" />
-          <p>Chargement des factures...</p>
+        <div className="billing-header">
+          <Skeleton variant="title" width="30%" />
+          <div style={{ marginTop: '0.5rem' }}>
+            <Skeleton variant="text" width="50%" />
+          </div>
+        </div>
+        {isAdmin && (
+          <section className="billing-card" style={{ marginBottom: '1.5rem' }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <Skeleton variant="title" width="20%" />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} variant="card" height={60} />
+              ))}
+            </div>
+          </section>
+        )}
+        <div className="billing-grid">
+          <section className="billing-list-card billing-card">
+            <div style={{ marginBottom: '1rem' }}>
+              <Skeleton variant="title" width="40%" />
+            </div>
+            <Skeleton variant="line" count={5} />
+          </section>
+          <section className="billing-detail-card billing-card">
+            <div style={{ marginBottom: '1rem' }}>
+              <Skeleton variant="title" width="30%" />
+            </div>
+            <Skeleton variant="line" count={4} />
+          </section>
         </div>
       </div>
     );
@@ -166,12 +237,89 @@ export default function BillingPage() {
   return (
     <div className="billing-page">
       <div className="billing-header">
-        <h2 className="billing-title">Facturation</h2>
-        <p className="billing-subtitle">Consultez et téléchargez vos factures.</p>
+        <h2 className="billing-title">{isAdmin ? 'Facturation (Toutes les factures)' : 'Facturation'}</h2>
+        <p className="billing-subtitle">{isAdmin ? 'Gérez toutes les factures de la plateforme.' : 'Consultez et téléchargez vos factures.'}</p>
       </div>
 
-      <section className="billing-card" style={{ marginBottom: '1.5rem' }}>
-        <h3 className="billing-card-title">Préférences de paiement</h3>
+      {isAdmin && (
+        <section className="billing-card" style={{ marginBottom: '1.5rem' }}>
+          <h3 className="billing-card-title">Filtres</h3>
+          <div className="billing-filters" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Statut</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
+                className="billing-input"
+              >
+                <option value="">Tous</option>
+                <option value="pending">En attente</option>
+                <option value="paid">Payée</option>
+                <option value="draft">Brouillon</option>
+                <option value="cancelled">Annulée</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Tri par</label>
+              <select
+                value={filters.sort}
+                onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
+                className="billing-input"
+              >
+                <option value="generatedAt">Date</option>
+                <option value="totalAmount">Montant</option>
+                <option value="status">Statut</option>
+                <option value="invoiceNumber">N° facture</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Ordre</label>
+              <select
+                value={filters.order}
+                onChange={(e) => setFilters(prev => ({ ...prev, order: e.target.value }))}
+                className="billing-input"
+              >
+                <option value="DESC">Décroissant</option>
+                <option value="ASC">Croissant</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Date début</label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value, page: 1 }))}
+                className="billing-input"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Date fin</label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value, page: 1 }))}
+                className="billing-input"
+              />
+            </div>
+            {(filters.status || filters.dateFrom || filters.dateTo) && (
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setFilters({ status: '', userId: '', dateFrom: '', dateTo: '', sort: 'generatedAt', order: 'DESC', page: 1, limit: 20 })}
+                  className="billing-btn"
+                  style={{ background: 'var(--text-muted)' }}
+                >
+                  Réinitialiser
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {!isAdmin && (
+        <section className="billing-card" style={{ marginBottom: '1.5rem' }}>
+          <h3 className="billing-card-title">Préférences de paiement</h3>
         <div className="billing-preferences">
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Mode de règlement</label>
@@ -245,34 +393,69 @@ export default function BillingPage() {
           </button>
         </div>
       </section>
+      )}
 
       <div className="billing-grid">
         <section className="billing-list-card billing-card">
-          <h3 className="billing-card-title">Mes factures</h3>
+          <h3 className="billing-card-title">{isAdmin ? 'Toutes les factures' : 'Mes factures'}</h3>
           {invoices.length === 0 ? (
             <p className="billing-empty">Aucune facture pour le moment.</p>
           ) : (
+            <>
             <ul className="billing-list">
-              {invoices.map((inv) => (
+              {invoices.map((inv, idx) => (
                 <li
                   key={inv.id}
-                  className={`billing-list-item ${selectedId === inv.id ? 'active' : ''}`}
+                  className={`billing-list-item list-item ${selectedId === inv.id ? 'active' : ''}`}
+                  style={{ animationDelay: `${idx * 0.03}s` }}
                 >
+                    <button
+                      type="button"
+                      className="billing-list-item-btn"
+                      onClick={() => setSelectedId(inv.id)}
+                      style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr 1fr 1fr 1fr' : '1fr 1fr 1fr 1fr', gap: '0.5rem', alignItems: 'center' }}
+                    >
+                      <span className="billing-list-item-num">{inv.invoiceNumber}</span>
+                      {isAdmin && inv.user && (
+                        <span className="billing-list-item-client" style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                          {inv.user.name || inv.user.email}
+                        </span>
+                      )}
+                      <span className="billing-list-item-date">{formatDate(inv.generatedAt)}</span>
+                      <span className={`billing-list-item-status ${statusClass(inv.status)}`}>
+                        {statusLabel(inv.status)}
+                      </span>
+                      <span className="billing-list-item-amount">{formatAmount(inv.totalAmount, inv.currency)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {isAdmin && pagination.totalPages > 1 && (
+                <div className="billing-pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                   <button
                     type="button"
-                    className="billing-list-item-btn"
-                    onClick={() => setSelectedId(inv.id)}
+                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                    disabled={filters.page === 1}
+                    className="billing-btn"
+                    style={{ background: 'var(--text-muted)' }}
                   >
-                    <span className="billing-list-item-num">{inv.invoiceNumber}</span>
-                    <span className="billing-list-item-date">{formatDate(inv.generatedAt)}</span>
-                    <span className={`billing-list-item-status ${statusClass(inv.status)}`}>
-                      {statusLabel(inv.status)}
-                    </span>
-                    <span className="billing-list-item-amount">{formatAmount(inv.totalAmount, inv.currency)}</span>
+                    Précédent
                   </button>
-                </li>
-              ))}
-            </ul>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                    Page {pagination.page} sur {pagination.totalPages} ({pagination.total} factures)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                    disabled={filters.page >= pagination.totalPages}
+                    className="billing-btn"
+                    style={{ background: 'var(--text-muted)' }}
+                  >
+                    Suivant
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </section>
 
@@ -302,6 +485,14 @@ export default function BillingPage() {
                   {statusLabel(detail.status)}
                 </span>
               </div>
+              {isAdmin && detail.user && (
+                <div className="billing-detail-row">
+                  <span className="billing-detail-label">Client</span>
+                  <span className="billing-detail-value">
+                    {detail.user.name || detail.user.email} {detail.user.email && detail.user.name && `(${detail.user.email})`}
+                  </span>
+                </div>
+              )}
               <div className="billing-detail-row">
                 <span className="billing-detail-label">Total</span>
                 <span className="billing-detail-value billing-detail-total">

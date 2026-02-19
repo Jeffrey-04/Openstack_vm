@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import apiService from '../services/api';
 import toast from 'react-hot-toast';
-import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import Skeleton from '../components/Skeleton';
 import EmptyState from '../components/common/EmptyState';
 
 function MyVMs() {
@@ -84,8 +84,27 @@ function MyVMs() {
 
   if (loading) {
     return (
-      <div className="ds-loading-wrap">
-        <LoadingSpinner message="Chargement de vos VMs..." />
+      <div>
+        <div className="card" style={{ marginBottom: '2rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <Skeleton variant="title" width="40%" />
+            <Skeleton variant="text" width="60%" style={{ marginTop: '0.5rem' }} />
+          </div>
+        </div>
+        <div className="grid grid-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="card">
+              <Skeleton variant="title" width="60%" style={{ marginBottom: '1rem' }} />
+              <Skeleton variant="button" width={80} style={{ marginBottom: '1rem' }} />
+              <Skeleton variant="line" count={3} />
+              <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+                <Skeleton variant="button" width={100} />
+                <Skeleton variant="button" width={100} />
+                <Skeleton variant="button" width={100} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

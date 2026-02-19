@@ -36,6 +36,9 @@ export const API = {
     ADMIN_VM_TEMPLATES: '/api/admin/vm-templates',
     ADMIN_VM_TEMPLATE_BY_ID: (id) => `/api/admin/vm-templates/${id}`,
     ADMIN_SCALE_UP_RULE: '/api/admin/scale-up-rule',
+    ADMIN_STATS: '/api/admin/stats',
+    ADMIN_USERS: '/api/admin/users',
+    ADMIN_INVOICES: '/api/admin/invoices',
   }
 };
 

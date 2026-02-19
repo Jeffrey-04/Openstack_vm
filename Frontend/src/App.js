@@ -18,6 +18,7 @@ import BillingPage from './pages/BillingPage';
 import SettingsPage from './pages/SettingsPage';
 import AdminVmTemplates from './pages/admin/AdminVmTemplates';
 import AdminScaleUpRule from './pages/admin/AdminScaleUpRule';
+import AdminUsers from './pages/admin/AdminUsers';
 import AuthLayout from './pages/Auth/AuthLayout';
 import SignIn from './pages/Auth/SignIn';
 import SignUp from './pages/Auth/SignUp';
@@ -104,7 +105,7 @@ function AppContent() {
             <Route path="create" element={<CreateVM />} />
             <Route path="vm-templates" element={<AdminVmTemplates />} />
             <Route path="scale-up-rule" element={<AdminScaleUpRule />} />
-            <Route path="users" element={<PlaceholderPage title="Utilisateurs" message="Gestion des utilisateurs à venir." />} />
+            <Route path="users" element={<AdminUsers />} />
             <Route path="billing" element={<BillingPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
@@ -125,7 +126,24 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Toaster position="top-right" toastOptions={{ duration: 5000, style: { borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' } }} />
+        <Toaster 
+          position="top-right" 
+          toastOptions={{ 
+            duration: 5000,
+            style: {
+              borderRadius: 'var(--radius-lg)',
+              backdropFilter: 'blur(12px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+              background: 'rgba(255, 255, 255, 0.85)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+              padding: '12px 16px',
+              fontSize: '0.875rem',
+              fontWeight: 500
+            },
+            className: 'liquid-glass-toast'
+          }} 
+        />
         <ApiToastListener />
         <div className="App">
           <AppContent />

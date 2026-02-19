@@ -5,12 +5,17 @@
 }
 
 body {
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-body, 'Poppins'), -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #f7f8fa;
   min-height: 100vh;
   color: #2c3e50;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading, 'Satoshi'), var(--font-body, 'Poppins'), sans-serif;
+  font-weight: 600;
 }
 
 code {
@@ -55,6 +60,12 @@ code {
 
   --transition-base: 0.2s ease;
   --transition-slow: 0.3s ease;
+
+  --font-heading: 'Satoshi', 'Poppins', sans-serif;
+  --font-body: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --skeleton-bg: #f0f0f0;
+  --skeleton-shine: #f8f8f8;
 }
 
 button:focus-visible,
@@ -84,4 +95,85 @@ textarea:focus-visible,
 }
 .modal-body {
   padding: 1rem 0;
+}
+
+/* ========== Animations ========== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Cards avec animation au hover */
+.card-animated {
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.card-animated:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* List items avec stagger */
+.list-item {
+  animation: fadeIn 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+.list-item:nth-child(1) { animation-delay: 0.05s; }
+.list-item:nth-child(2) { animation-delay: 0.1s; }
+.list-item:nth-child(3) { animation-delay: 0.15s; }
+.list-item:nth-child(4) { animation-delay: 0.2s; }
+.list-item:nth-child(5) { animation-delay: 0.25s; }
+.list-item:nth-child(n+6) { animation-delay: 0.3s; }
+
+/* ========== Toasts Liquid Glass ========== */
+/* Styles globaux pour react-hot-toast */
+div[data-sonner-toaster] {
+  --toast-bg: rgba(255, 255, 255, 0.85);
+  --toast-border: rgba(255, 255, 255, 0.2);
+  --toast-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Override pour react-hot-toast */
+div[class*="react-hot-toast"] {
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+/* Dark mode support pour toasts */
+@media (prefers-color-scheme: dark) {
+  div[class*="react-hot-toast"] {
+    background: rgba(30, 41, 59, 0.85) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #f1f5f9 !important;
+  }
 }

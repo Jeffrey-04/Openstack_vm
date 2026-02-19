@@ -250,6 +250,33 @@ export const apiService = {
     const response = await axiosInstance.put(API.ENDPOINTS.ADMIN_SCALE_UP_RULE, data);
     return response.data;
   },
+  async getAdminStats() {
+    const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_STATS);
+    return response.data;
+  },
+  async getAdminUsers(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.search) queryParams.append('search', params.search);
+    const url = `${API.ENDPOINTS.ADMIN_USERS}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  },
+  async getAdminInvoices(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.status) queryParams.append('status', params.status);
+    if (params.userId) queryParams.append('userId', params.userId);
+    if (params.dateFrom) queryParams.append('dateFrom', params.dateFrom);
+    if (params.dateTo) queryParams.append('dateTo', params.dateTo);
+    if (params.sort) queryParams.append('sort', params.sort);
+    if (params.order) queryParams.append('order', params.order);
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    const url = `${API.ENDPOINTS.ADMIN_INVOICES}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  },
 };
 
 export default apiService;
