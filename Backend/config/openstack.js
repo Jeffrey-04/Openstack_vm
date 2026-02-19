@@ -1,5 +1,16 @@
 const axios = require('axios');
 
+// Éviter de spammer les logs quand OpenStack est indisponible (une fois par minute par type)
+const lastConnectionErrorLog = { nova: 0, neutron: 0, glance: 0, keystone: 0 };
+const THROTTLE_MS = 60 * 1000;
+
+function logConnectionErrorOnce(key, message) {
+  const now = Date.now();
+  if (now - lastConnectionErrorLog[key] < THROTTLE_MS) return;
+  lastConnectionErrorLog[key] = now;
+  console.warn(`[OpenStack] ${message} (indisponible; prochain log dans ${THROTTLE_MS / 1000}s)`);
+}
+
 class OpenStackClient {
   constructor() {
     this.authToken = null;
@@ -43,7 +54,7 @@ class OpenStackClient {
 
       return this.authToken;
     } catch (error) {
-      console.error('Authentication error:', error.response?.data || error.message);
+      logConnectionErrorOnce('keystone', 'Auth: ' + (error.message || error.code || 'failed'));
       throw new Error('Failed to authenticate with OpenStack');
     }
   }
@@ -68,7 +79,8 @@ class OpenStackClient {
       const response = await axios(config);
       return response.data;
     } catch (error) {
-      console.error('OpenStack API error:', error.response?.data || error.message);
+      const msg = error.message || error.code || 'API error';
+      logConnectionErrorOnce('nova', msg);
       throw error;
     }
   }
@@ -147,7 +159,7 @@ class OpenStackClient {
       });
       return response.data;
     } catch (error) {
-      console.error('Network listing error:', error.message);
+      logConnectionErrorOnce('neutron', 'Networks: ' + (error.message || error.code));
       return { networks: [] };
     }
   }
@@ -160,7 +172,7 @@ class OpenStackClient {
       });
       return response.data;
     } catch (error) {
-      console.error('Floating IP listing error:', error.message);
+      logConnectionErrorOnce('neutron', 'Floating IPs: ' + (error.message || error.code));
       return { floatingips: [] };
     }
   }
