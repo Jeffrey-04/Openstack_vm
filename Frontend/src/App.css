@@ -38,10 +38,7 @@
 }
 
 .brand-text {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--primary);
 }
 
 .nav-links {
@@ -63,24 +60,22 @@
 }
 
 .nav-link:hover {
-  background: var(--light);
+  background: var(--primary-light);
   color: var(--primary);
-  transform: translateY(-2px);
 }
 
 .nav-link.active {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  background: var(--primary);
   color: white;
 }
 
 .openstack-link {
-  background: #f59e0b;
+  background: var(--secondary);
   color: white !important;
 }
 
 .openstack-link:hover {
-  background: #d97706;
-  transform: translateY(-2px);
+  background: #334155;
 }
 
 /* Main Content */
@@ -99,20 +94,19 @@
   margin: 0;
 }
 
-/* Cards – design system */
+/* Cards – style Hostinger (blanc, léger, lisible) */
 .card {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border);
-  transition: box-shadow var(--transition-base), transform var(--transition-base), border-color var(--transition-base);
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
 }
 
 .card:hover {
   box-shadow: var(--shadow-card-hover);
-  border-color: rgba(108, 92, 231, 0.2);
-  transform: translateY(-1px);
+  border-color: var(--border);
 }
 
 .card-header {
@@ -310,6 +304,73 @@
   color: #1e40af;
 }
 
+.badge-deal {
+  background: var(--deal-light);
+  color: #4d7c0f;
+  font-weight: 600;
+}
+
+/* Bloc type Hostinger "Plans and pricing" */
+.section-head {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.section-head .section-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+.section-head .section-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--dark);
+  margin-bottom: 1rem;
+}
+.section-reassurance {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 1rem;
+}
+.card-popular {
+  position: relative;
+  border: 2px solid var(--primary);
+  box-shadow: var(--shadow-card-hover);
+}
+.card-popular::before {
+  content: 'LE PLUS POPULAIRE';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--primary);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 0.5rem;
+  text-align: center;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.card-popular .card-header,
+.card-popular .card-body {
+  padding-top: 2rem;
+}
+.btn-outline-primary {
+  background: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+.btn-outline-primary:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
 /* Tables */
 .table {
   width: 100%;
@@ -356,39 +417,44 @@
   to { transform: rotate(360deg); }
 }
 
-/* Alert */
+/* Alert – style Hostinger (carte claire, bordure) */
 .alert {
-  padding: 1rem 1.5rem;
-  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-lg);
   margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .alert-success {
-  background: #d1fae5;
-  color: #065f46;
   border-left: 4px solid var(--success);
+  color: #065f46;
 }
 
 .alert-error {
-  background: #fee2e2;
-  color: #991b1b;
   border-left: 4px solid var(--danger);
+  color: #991b1b;
+  background: #fef2f2;
 }
 
 .alert-info {
-  background: #dbeafe;
-  color: #1e40af;
   border-left: 4px solid var(--info);
+  color: #1e40af;
 }
 
-/* Footer */
+/* Footer – style Hostinger (sobre) */
 .footer {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  background: var(--secondary);
+  color: #94a3b8;
   padding: 2rem;
   text-align: center;
-  color: #6b7280;
-  margin-top: 3rem;
+  margin-top: auto;
+  font-size: 0.9rem;
 }
 
 /* Auth pages */
@@ -481,23 +547,24 @@
 
 /* Dark mode */
 body.dark-mode {
-  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  background: #1e293b;
 }
 body.dark-mode .navbar,
 body.dark-mode .footer {
-  background: rgba(31, 41, 55, 0.95);
-  color: #e5e7eb;
+  background: #0f172a;
+  color: #e2e8f0;
 }
 body.dark-mode .card,
 body.dark-mode .stat-card {
-  background: #374151;
-  color: #e5e7eb;
+  background: #334155;
+  color: #e2e8f0;
+  border-color: #475569;
 }
 body.dark-mode .nav-link {
-  color: #d1d5db;
+  color: #cbd5e1;
 }
 body.dark-mode .nav-link:hover {
-  color: #a5b4fc;
+  color: #a78bfa;
 }
 body.dark-mode .card-title,
 body.dark-mode .stat-value {
