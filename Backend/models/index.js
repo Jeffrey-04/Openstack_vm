@@ -51,8 +51,12 @@ const models = {
   UsageSlice
 };
 
-const syncDatabase = async (options = { alter: true }) => {
-  await sequelize.sync(options);
+// alter: true on SQLite can fail when changing columns (backup table gets UNIQUE violation
+// if users table has duplicate emails). Use alter: false by default so the server starts.
+const syncDatabase = async (options = {}) => {
+  const dialect = sequelize.getDialect();
+  const useAlter = options.alter ?? (process.env.DB_ALTER === 'true' && dialect !== 'sqlite');
+  await sequelize.sync({ ...options, alter: useAlter });
   return sequelize;
 };
 
