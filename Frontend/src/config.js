@@ -1,7 +1,11 @@
 // Configuration de l'API
-// BASE_URL : origine du backend. Vide = URLs relatives (proxy ou même origine).
-// Les ENDPOINTS sont des chemins relatifs (/api/...) pour éviter la double concat avec axios baseURL.
-const API_BASE_URL = process.env.REACT_APP_API_URL ?? '';
+// En navigateur : on utilise toujours l'origine de la page (même hôte), pour que ça marche
+// quand on ouvre http://IP:3000 sans dépendre de REACT_APP_API_URL sur le serveur.
+// Les ENDPOINTS sont des chemins relatifs (/api/...) ; le proxy (setupProxy) envoie /api vers le backend.
+const API_BASE_URL =
+  typeof window !== 'undefined'
+    ? window.location.origin
+    : (process.env.REACT_APP_API_URL ?? '');
 
 export const API = {
   BASE_URL: API_BASE_URL,
