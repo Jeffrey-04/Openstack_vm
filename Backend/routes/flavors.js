@@ -3,14 +3,14 @@ const router = express.Router();
 const openstack = require('../config/openstack');
 const logger = require('../utils/logger');
 
-// Pricing configuration (in USD per month)
+// Pricing configuration (en FCFA / mois)
 const PRICING = {
-  'm1.micro': 5,
-  'm1.tiny': 8,
-  'm1.small': 10,
-  'm1.medium': 25,
-  'm1.large': 50,
-  'm1.xlarge': 100
+  'm1.micro': 3000,
+  'm1.tiny': 5000,
+  'm1.small': 6000,
+  'm1.medium': 15000,
+  'm1.large': 30000,
+  'm1.xlarge': 60000
 };
 
 // List all flavors with pricing (empty list if OpenStack unavailable)
@@ -23,7 +23,7 @@ router.get('/', async (req, res, next) => {
     const flavorsWithPricing = (data.flavors || []).map(flavor => ({
       ...flavor,
       price: PRICING[flavor.name] || calculatePrice(flavor),
-      currency: 'USD',
+      currency: 'XAF',
       billing: 'monthly'
     }));
 
@@ -52,7 +52,7 @@ router.get('/:id', async (req, res, next) => {
     
     // Add pricing information
     flavor.price = PRICING[flavor.name] || calculatePrice(flavor);
-    flavor.currency = 'USD';
+    flavor.currency = 'XAF';
     flavor.billing = 'monthly';
 
     res.json({
@@ -64,16 +64,14 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// Helper function to calculate price based on resources
+// Helper function to calculate price based on resources (en FCFA / mois)
 function calculatePrice(flavor) {
   const ramGb = flavor.ram / 1024;
   const diskGb = flavor.disk;
   const vcpus = flavor.vcpus;
-  
-  // Simple pricing formula: $2 per vCPU + $3 per GB RAM + $0.10 per GB disk
-  const price = (vcpus * 2) + (ramGb * 3) + (diskGb * 0.10);
-  
-  return Math.ceil(price);
+  // Formule simple : ~2 USD/vCPU + 3 USD/GB RAM + 0.10 USD/GB disque, converti en FCFA (1 USD ≈ 600 FCFA)
+  const priceUsd = (vcpus * 2) + (ramGb * 3) + (diskGb * 0.10);
+  return Math.ceil(priceUsd * 600);
 }
 
 module.exports = router;

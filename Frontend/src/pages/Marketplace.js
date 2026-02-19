@@ -32,6 +32,11 @@ function Marketplace() {
     return `${ram} MB`;
   };
 
+  const formatPriceFCFA = (price) => {
+    if (price == null) return '—';
+    return `${Number(price).toLocaleString('fr-FR')} FCFA`;
+  };
+
   if (loading) {
     return (
       <div className="loading">
@@ -106,7 +111,7 @@ function Marketplace() {
                   À partir de
                 </div>
                 <div style={{ color: 'white', fontSize: '2rem', fontWeight: 'bold' }}>
-                  ${flavor.price}
+                  {formatPriceFCFA(flavor.price)}
                 </div>
                 <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
                   par mois
@@ -129,7 +134,7 @@ function Marketplace() {
       <div className="card" style={{ marginTop: '2rem', background: '#fef3c7' }}>
         <h3 style={{ marginBottom: '0.5rem' }}>💰 Tarification transparente</h3>
         <p style={{ color: '#92400e', marginBottom: '0' }}>
-          Tous les prix sont mensuels. Pas de frais cachés. Annulez à tout moment.
+          Tous les prix sont mensuels en FCFA. Pas de frais cachés. Annulez à tout moment.
           Facturation à l'heure pour plus de flexibilité.
         </p>
       </div>

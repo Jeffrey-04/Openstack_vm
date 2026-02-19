@@ -9,6 +9,7 @@ import { ClientGuard } from './components/ClientGuard';
 import DashboardLayout from './layouts/DashboardLayout';
 import Marketplace from './pages/Marketplace';
 import MyVMs from './pages/MyVMs';
+import VMDetail from './pages/VMDetail';
 import CreateVM from './pages/CreateVM';
 import AdminDashboard from './pages/AdminDashboard';
 import ClientDashboard from './pages/ClientDashboard';
@@ -89,6 +90,7 @@ function AppContent() {
           }>
             <Route index element={<ClientDashboard />} />
             <Route path="vms" element={<MyVMs />} />
+            <Route path="vms/:id" element={<VMDetail />} />
             <Route path="marketplace" element={<Marketplace />} />
             <Route path="create" element={<CreateVM />} />
             <Route path="settings" element={<SettingsPage />} />
@@ -102,6 +104,7 @@ function AppContent() {
           }>
             <Route index element={<AdminDashboard />} />
             <Route path="vms" element={<AdminDashboard />} />
+            <Route path="vms/:id" element={<VMDetail />} />
             <Route path="create" element={<CreateVM />} />
             <Route path="vm-templates" element={<AdminVmTemplates />} />
             <Route path="scale-up-rule" element={<AdminScaleUpRule />} />

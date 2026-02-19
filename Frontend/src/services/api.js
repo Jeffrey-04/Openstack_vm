@@ -136,6 +136,16 @@ export const apiService = {
     return response.data;
   },
 
+  async getVmMetrics(vmId) {
+    const response = await axiosInstance.get(API.ENDPOINTS.VM_METRICS(vmId));
+    return response.data;
+  },
+
+  async getVmScalingHistory(vmId) {
+    const response = await axiosInstance.get(API.ENDPOINTS.VM_SCALING_HISTORY(vmId));
+    return response.data;
+  },
+
   async deleteVM(id) {
     const response = await axiosInstance.delete(API.ENDPOINTS.VM_BY_ID(id));
     return response.data;

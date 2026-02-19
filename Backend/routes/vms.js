@@ -57,7 +57,7 @@ router.put('/:id/scaling-policy', scalingController.putScalingPolicy);
 router.get('/:id/metrics', scalingController.getMetrics);
 router.get('/:id/scaling-history', scalingController.getScalingHistory);
 
-// Get specific VM (must belong to current user)
+// Get specific VM (must belong to current user), with flavor details for detail page
 router.get('/:id', async (req, res, next) => {
   try {
     const vm = await VM.findOne({ where: { instanceId: req.params.id, userId: req.userId } });
@@ -65,9 +65,19 @@ router.get('/:id', async (req, res, next) => {
       return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
     }
     const data = await openstack.getServer(req.params.id);
+    const server = { ...data.server, dbId: vm.id, flavorId: vm.flavorId };
+    const flavorId = server.flavor?.id || server.flavorId || vm.flavorId;
+    if (flavorId) {
+      try {
+        const flavorData = await openstack.getFlavor(flavorId);
+        server.flavor = flavorData.flavor || flavorData;
+      } catch {
+        // keep existing server.flavor or id only
+      }
+    }
     res.json({
       success: true,
-      server: { ...data.server, dbId: vm.id, flavorId: vm.flavorId }
+      server
     });
   } catch (error) {
     next(error);

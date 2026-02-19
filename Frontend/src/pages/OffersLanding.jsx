@@ -7,7 +7,7 @@ const DEFAULT_OFFERS = [
   {
     id: 'starter',
     name: 'Starter',
-    price: 5,
+    price: 3000,
     period: 'mois',
     features: ['1 vCPU', '512 MB RAM', '10 GB SSD', 'Support communauté'],
     recommended: false,
@@ -15,7 +15,7 @@ const DEFAULT_OFFERS = [
   {
     id: 'pro',
     name: 'Pro',
-    price: 25,
+    price: 15000,
     period: 'mois',
     features: ['2 vCPUs', '4 GB RAM', '80 GB SSD', 'Support prioritaire', 'Sauvegardes incluses'],
     recommended: true,
@@ -23,7 +23,7 @@ const DEFAULT_OFFERS = [
   {
     id: 'business',
     name: 'Business',
-    price: 50,
+    price: 30000,
     period: 'mois',
     features: ['4 vCPUs', '8 GB RAM', '160 GB SSD', 'Support 24/7', 'SLA 99.9%', 'IP dédiée'],
     recommended: false,
@@ -33,6 +33,11 @@ const DEFAULT_OFFERS = [
 function formatRAM(ram) {
   if (ram >= 1024) return `${(ram / 1024).toFixed(0)} GB`;
   return `${ram} MB`;
+}
+
+function formatPriceFCFA(price) {
+  if (price == null) return '—';
+  return `${Number(price).toLocaleString('fr-FR')} FCFA`;
 }
 
 function OffersLanding() {
@@ -115,7 +120,7 @@ function OffersLanding() {
                 <div className="offers-card-header">
                   <h3 className="offers-card-name">{offer.name}</h3>
                   <div className="offers-card-price">
-                    <span className="offers-card-amount">${offer.price}</span>
+                    <span className="offers-card-amount">{formatPriceFCFA(offer.price)}</span>
                     <span className="offers-card-period">/ {offer.period}</span>
                   </div>
                 </div>

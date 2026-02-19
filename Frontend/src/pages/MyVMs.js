@@ -158,7 +158,9 @@ function MyVMs() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
                 <div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                    {vm.name}
+                    <Link to={isClient ? `/client/vms/${vm.id}` : `/admin/vms/${vm.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {vm.name}
+                    </Link>
                   </h3>
                   <span className={`badge ${getStatusBadge(vm.status)}`}>
                     {getStatusText(vm.status)}
@@ -182,6 +184,12 @@ function MyVMs() {
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <Link
+                  to={isClient ? `/client/vms/${vm.id}` : `/admin/vms/${vm.id}`}
+                  className="btn btn-sm btn-primary"
+                >
+                  Voir détail
+                </Link>
                 {vm.status === 'SHUTOFF' ? (
                   <button
                     onClick={() => handleVMAction(vm.id, 'start')}

@@ -35,8 +35,30 @@ export default function ClientOverview() {
 
   const copySsh = () => {
     if (sshLine.includes('—')) return;
-    navigator.clipboard.writeText(sshLine);
-    toast.success('Commande copiée dans le presse-papiers.');
+    const copyToClipboard = (text) => {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'absolute';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        return Promise.resolve(true);
+      } catch (e) {
+        return Promise.resolve(false);
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    };
+    copyToClipboard(sshLine).then((ok) => {
+      if (ok) toast.success('Commande copiée dans le presse-papiers.');
+      else toast.error('Copie impossible. Copiez la commande manuellement.');
+    });
   };
 
   if (loading) {
