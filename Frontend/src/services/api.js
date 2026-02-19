@@ -3,6 +3,21 @@ import { API } from '../config';
 
 const getToken = () => localStorage.getItem('token');
 
+// Log de la config API au chargement (une seule fois)
+const _apiUrlLogged = { current: false };
+function logApiConfig() {
+  if (_apiUrlLogged.current) return;
+  _apiUrlLogged.current = true;
+  const base = API.BASE_URL || '(vide = URLs relatives)';
+  const loginUrl = API.ENDPOINTS.AUTH_LOGIN || '';
+  console.warn('[API] Config:', {
+    REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+    API_BASE_URL: base,
+    AUTH_LOGIN: loginUrl,
+    hint: base ? 'Le front appelle une URL absolue. Vérifiez CORS et que le backend écoute sur la même origine ou autorise cette origine.' : 'URLs relatives: le front et le backend doivent être servis ensemble (proxy Nginx ou même host).'
+  });
+}
+
 // Create axios instance
 const axiosInstance = axios.create({
   baseURL: API.BASE_URL,
@@ -17,12 +32,21 @@ const log = (msg, ...args) => {
   console.log(`[API] ${ts} ${msg}`, ...args);
 };
 
+const logError = (msg, ...args) => {
+  const ts = new Date().toISOString();
+  console.error(`[API] ${ts} ${msg}`, ...args);
+};
+
 axiosInstance.interceptors.request.use((config) => {
+  logApiConfig();
   const url = (config.baseURL || '') + (config.url || '');
   log('REQUEST', config.method?.toUpperCase(), url);
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
+}, (err) => {
+  logError('REQUEST interceptor error', err?.message, err?.code, err);
+  return Promise.reject(err);
 });
 
 axiosInstance.interceptors.response.use(
@@ -31,8 +55,18 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
+    const fullUrl = error.config ? (error.config.baseURL || '') + (error.config?.url || '') : '(inconnu)';
+    const method = error.config?.method?.toUpperCase() || '?';
+
     if (error.response) {
-      log('API Error', error.response.status, error.response.data);
+      logError('API Error (réponse serveur)', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        method,
+        url: fullUrl,
+        data: error.response.data,
+        headers: error.response.headers ? { 'content-type': error.response.headers['content-type'] } : undefined
+      });
       const status = error.response.status;
       if (status === 401) {
         localStorage.removeItem('token');
@@ -43,7 +77,15 @@ axiosInstance.interceptors.response.use(
         window.dispatchEvent(new CustomEvent('api-toast', { detail: { type: 'error', message: 'Erreur serveur. Réessayez plus tard.' } }));
       }
     } else {
-      log('API Error (no response)', error.message, error.code || '');
+      logError('API Error (connexion impossible)', {
+        message: error.message,
+        code: error.code,
+        method,
+        url: fullUrl,
+        baseURL: error.config?.baseURL,
+        timeout: error.code === 'ECONNABORTED' ? 'timeout' : undefined,
+        hint: error.code === 'ERR_NETWORK' ? 'Vérifiez: backend démarré, URL correcte (REACT_APP_API_URL), CORS, pare-feu, proxy (nginx).' : undefined
+      });
       window.dispatchEvent(new CustomEvent('api-toast', { detail: { type: 'error', message: 'Connexion au serveur impossible.' } }));
     }
     return Promise.reject(error);

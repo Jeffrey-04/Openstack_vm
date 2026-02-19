@@ -43,6 +43,7 @@ export default function SignIn() {
       const msg =
         err.response?.data?.error?.message ||
         (err.response?.status === 0 || err.code === 'ERR_NETWORK' ? 'Connexion au serveur impossible.' : 'Identifiants incorrects.');
+      console.error('[SignIn] submit error', { message: msg, status: err?.response?.status, code: err?.code, url: err?.config?.baseURL + err?.config?.url });
       setError(msg);
     } finally {
       setSubmitting(false);

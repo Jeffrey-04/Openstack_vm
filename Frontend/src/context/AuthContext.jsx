@@ -33,21 +33,45 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-    const data = await apiService.login(email, password);
-    updateAuth(data.token, data.user);
-    return data;
+    try {
+      const data = await apiService.login(email, password);
+      updateAuth(data.token, data.user);
+      return data;
+    } catch (err) {
+      console.error('[Auth] login failed', {
+        message: err?.message,
+        code: err?.code,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        url: err?.config?.baseURL + err?.config?.url
+      });
+      throw err;
+    }
   };
 
   const register = async (payload) => {
-    const data = await apiService.register(payload);
-    updateAuth(data.token, data.user);
-    return data;
+    try {
+      const data = await apiService.register(payload);
+      updateAuth(data.token, data.user);
+      return data;
+    } catch (err) {
+      console.error('[Auth] register failed', {
+        message: err?.message,
+        code: err?.code,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        url: err?.config?.baseURL + err?.config?.url
+      });
+      throw err;
+    }
   };
 
   const logout = async () => {
     try {
       await apiService.logout();
-    } catch (_) {}
+    } catch (err) {
+      console.warn('[Auth] logout request failed', err?.message);
+    }
     updateAuth(null, null);
   };
 
@@ -62,7 +86,8 @@ export function AuthProvider({ children }) {
         if (data.user) setUser(data.user);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn('[Auth] getMe failed, clearing session', err?.message, err?.code, err?.response?.status);
         updateAuth(null, null);
         setLoading(false);
       });

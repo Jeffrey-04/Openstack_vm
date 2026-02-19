@@ -44,7 +44,9 @@ app.use('/api/', apiLimiter);
 const logger = require('./utils/logger');
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
+    const meta = { host: req.get('host'), origin: req.get('origin'), path: req.path };
     logger.request(req.method, req.path, req.method !== 'GET' ? req.body : undefined);
+    logger.info('Request meta', JSON.stringify(meta));
   }
   next();
 });
@@ -81,11 +83,21 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware (logger déjà requis plus haut)
 app.use((err, req, res, next) => {
+  const status = err.status || 500;
+  const bodySummary = req.body && typeof req.body === 'object'
+    ? { ...req.body, password: req.body.password ? '[REDACTED]' : undefined }
+    : undefined;
   logger.error('Unhandled error', err.message, err.stack);
-  res.status(err.status || 500).json({
+  logger.error('Error context', {
+    method: req.method,
+    path: req.originalUrl,
+    query: Object.keys(req.query || {}).length ? req.query : undefined,
+    bodySummary: status >= 500 ? bodySummary : undefined
+  });
+  res.status(status).json({
     error: {
       message: err.message || 'Internal Server Error',
-      status: err.status || 500
+      status
     }
   });
 });
@@ -141,6 +153,7 @@ const startServer = async () => {
 ║   Time: ${new Date().toLocaleString()}          ║
 ╚════════════════════════════════════════════╝
   `);
+    logger.info('Backend started', { PORT, CORS_ORIGIN: process.env.CORS_ORIGIN || '*', hint: 'Frontend: REACT_APP_API_URL=http://localhost:' + PORT });
   });
 };
 
