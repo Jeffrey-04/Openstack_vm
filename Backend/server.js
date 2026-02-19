@@ -36,7 +36,8 @@ app.use('/api/auth', authLimiter);
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
+  max: 500,
+  message: { error: { message: 'Trop de requêtes, réessayez plus tard.', status: 429 } }
 });
 app.use('/api/', apiLimiter);
 
