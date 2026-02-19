@@ -129,7 +129,7 @@ function CreateVM() {
       toast.success('VM créée avec succès. Elle sera prête dans quelques minutes.');
       if (isClient) navigate('/client/vms');
       else if (isAdmin) navigate('/admin/vms');
-      else navigate('/my-vms');
+      else navigate('/client/vms');
     } catch (err) {
       console.error('Error creating VM:', err);
       const msg = err.response?.data?.error?.message || 'Erreur lors de la création de la VM';
@@ -372,7 +372,7 @@ function CreateVM() {
               </button>
               <button
                 type="button"
-                onClick={() => { if (isClient) navigate('/client/vms'); else if (isAdmin) navigate('/admin/vms'); else navigate('/my-vms'); }}
+                onClick={() => { if (isClient) navigate('/client/vms'); else if (isAdmin) navigate('/admin/vms'); else navigate('/client/vms'); }}
                 className="btn btn-secondary"
               >
                 Annuler

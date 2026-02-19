@@ -20,7 +20,7 @@ export function PrivateRoute({ children, requireAdmin = false }) {
   }
 
   if (requireAdmin && user.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/client" replace />;
   }
 
   return children;

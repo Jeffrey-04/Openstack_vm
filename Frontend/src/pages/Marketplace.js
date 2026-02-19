@@ -114,7 +114,7 @@ function Marketplace() {
               </div>
 
               <Link 
-                to="/create" 
+                to="/client/create" 
                 state={{ selectedFlavor: flavor }}
                 className="btn btn-primary" 
                 style={{ width: '100%', justifyContent: 'center' }}

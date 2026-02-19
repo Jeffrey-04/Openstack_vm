@@ -7,7 +7,7 @@ export default function ForgotPassword() {
   return (
     <div className="auth-split">
       <div className="auth-split-form">
-        <Link to="/" className="auth-logo" aria-label="Accueil">
+        <Link to="/login" className="auth-logo" aria-label="VM Marketplace">
           <span className="auth-logo-icon">☁</span>
           <span>VM Marketplace</span>
         </Link>

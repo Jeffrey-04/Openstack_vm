@@ -1,9 +1,15 @@
+/* ========== Auth layout ========== */
+.auth-layout {
+  min-height: 100vh;
+  background: var(--bg-page, #f7f8fa);
+}
+
 /* ========== Auth split-screen layout ========== */
 .auth-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: calc(100vh - 0px);
-  background: #f9fafb;
+  min-height: 100vh;
+  background: var(--bg-page, #f7f8fa);
 }
 
 .auth-split-form {
@@ -21,16 +27,20 @@
   align-items: center;
   gap: 0.5rem;
   text-decoration: none;
-  color: #6c5ce7;
+  color: var(--primary, #6d28d9);
   font-weight: 700;
   font-size: 1.25rem;
   margin-bottom: 2.5rem;
 }
 
+.auth-logo:hover {
+  color: var(--primary-hover, #5b21b6);
+}
+
 .auth-logo-icon {
   width: 40px;
   height: 40px;
-  background: #6c5ce7;
+  background: var(--primary, #6d28d9);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -103,8 +113,8 @@
 
 .auth-input:focus {
   outline: none;
-  border-color: #6c5ce7;
-  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+  border-color: var(--primary, #6d28d9);
+  box-shadow: 0 0 0 3px var(--primary-light, rgba(109, 40, 217, 0.15));
 }
 
 .auth-input-wrap.without-toggle .auth-input {
@@ -150,13 +160,39 @@
 .auth-remember input {
   width: 1rem;
   height: 1rem;
-  accent-color: #6c5ce7;
+  accent-color: var(--primary, #6d28d9);
   cursor: pointer;
+}
+
+.auth-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.auth-checkbox-label input {
+  margin-top: 0.2rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--primary, #6d28d9);
+  cursor: pointer;
+}
+
+.auth-field-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 0.35rem;
+  margin-left: 1.875rem;
+  line-height: 1.4;
 }
 
 .auth-forgot {
   font-size: 0.9rem;
-  color: #6c5ce7;
+  color: var(--primary, #6d28d9);
   text-decoration: none;
   font-weight: 500;
 }
@@ -168,7 +204,7 @@
 .auth-btn-submit {
   width: 100%;
   padding: 0.875rem 1.5rem;
-  background: #6c5ce7;
+  background: var(--primary, #6d28d9);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -179,7 +215,7 @@
 }
 
 .auth-btn-submit:hover:not(:disabled) {
-  background: #5b4cdb;
+  background: var(--primary-hover, #5b21b6);
 }
 
 .auth-btn-submit:disabled {
@@ -238,7 +274,7 @@
 }
 
 .auth-footer-text a {
-  color: #6c5ce7;
+  color: var(--primary, #6d28d9);
   font-weight: 600;
   text-decoration: none;
 }

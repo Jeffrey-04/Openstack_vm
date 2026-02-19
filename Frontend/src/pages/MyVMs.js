@@ -125,7 +125,7 @@ function MyVMs() {
           message="Créez votre première VM en quelques clics."
           action={
             <Link
-              to={isClient ? '/client/create' : '/create'}
+              to={isClient ? '/client/create' : '/admin/create'}
               className="btn btn-primary"
             >
               Créer une VM
