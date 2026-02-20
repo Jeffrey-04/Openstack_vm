@@ -19,9 +19,19 @@ const loginValidation = [
   body('password').notEmpty().withMessage('Password required')
 ];
 
+const changePasswordValidation = [
+  body('currentPassword').notEmpty().withMessage('Current password required'),
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('Le nouveau mot de passe doit contenir au moins 8 caractères')
+    .matches(/\d/)
+    .withMessage('Le nouveau mot de passe doit contenir un chiffre')
+];
+
 router.post('/register', registerValidation, authController.register);
 router.post('/login', loginValidation, authController.login);
 router.post('/logout', authController.logout);
 router.get('/me', authenticate, authController.me);
+router.put('/change-password', authenticate, changePasswordValidation, authController.changePassword);
 
 module.exports = router;

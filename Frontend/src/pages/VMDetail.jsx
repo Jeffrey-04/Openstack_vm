@@ -114,6 +114,24 @@ function VMDetail() {
     });
   };
 
+  const chartData = useMemo(() => {
+    const cpu = (metrics.cpu_util || []).slice(0, 30).reverse();
+    const mem = (metrics.memory_usage || metrics.mem_util || []).slice(0, 30).reverse();
+    const byTime = {};
+    cpu.forEach((p) => {
+      const t = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+      if (!byTime[t]) byTime[t] = { name: t, cpu_util: undefined, memory_usage: undefined };
+      byTime[t].cpu_util = p.value;
+    });
+    mem.forEach((p) => {
+      const t = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+      if (!byTime[t]) byTime[t] = { name: t, cpu_util: undefined, memory_usage: undefined };
+      byTime[t].memory_usage = p.value;
+    });
+    return Object.values(byTime).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [metrics.cpu_util, metrics.memory_usage, metrics.mem_util]);
+  const hasChartData = chartData.length > 1;
+
   if (loading && !vm) {
     return (
       <div className="vm-detail">
@@ -149,23 +167,6 @@ function VMDetail() {
 
   const cpuMetric = (metrics.cpu_util || [])[0]?.value;
   const memMetric = (metrics.memory_usage || metrics.mem_util || [])[0]?.value;
-  const chartData = useMemo(() => {
-    const cpu = (metrics.cpu_util || []).slice(0, 30).reverse();
-    const mem = (metrics.memory_usage || metrics.mem_util || []).slice(0, 30).reverse();
-    const byTime = {};
-    cpu.forEach((p) => {
-      const t = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-      if (!byTime[t]) byTime[t] = { name: t, cpu_util: undefined, memory_usage: undefined };
-      byTime[t].cpu_util = p.value;
-    });
-    mem.forEach((p) => {
-      const t = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-      if (!byTime[t]) byTime[t] = { name: t, cpu_util: undefined, memory_usage: undefined };
-      byTime[t].memory_usage = p.value;
-    });
-    return Object.values(byTime).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [metrics.cpu_util, metrics.memory_usage, metrics.mem_util]);
-  const hasChartData = chartData.length > 1;
 
   return (
     <div className="vm-detail">

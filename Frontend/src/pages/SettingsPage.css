@@ -98,7 +98,77 @@
 .settings-error {
   color: #dc2626;
   font-size: 0.95rem;
-  margin: 0;
+  margin: 0 0 0.75rem 0;
+}
+
+.settings-success {
+  color: #059669;
+  font-size: 0.95rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.settings-password-form {
+  max-width: 360px;
+}
+
+.settings-form-group {
+  margin-bottom: 1rem;
+}
+
+.settings-form-group label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.35rem;
+}
+
+.settings-form-group input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.settings-form-group input:focus {
+  outline: none;
+  border-color: #6c5ce7;
+  box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.2);
+}
+
+.settings-form-group input:disabled {
+  background: #f9fafb;
+  cursor: not-allowed;
+}
+
+.settings-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.settings-btn-primary {
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #fff;
+  background: #6c5ce7;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+.settings-btn-primary:hover:not(:disabled) {
+  background: #5b4cd6;
+}
+
+.settings-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 @media (max-width: 600px) {

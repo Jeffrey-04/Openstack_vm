@@ -30,6 +30,7 @@ export const API = {
     AUTH_LOGIN: '/api/auth/login',
     AUTH_LOGOUT: '/api/auth/logout',
     AUTH_ME: '/api/auth/me',
+    AUTH_CHANGE_PASSWORD: '/api/auth/change-password',
     INVOICES: '/api/invoices',
     INVOICE_BY_ID: (id) => `/api/invoices/${id}`,
     INVOICE_DOWNLOAD: (id) => `/api/invoices/${id}/download`,

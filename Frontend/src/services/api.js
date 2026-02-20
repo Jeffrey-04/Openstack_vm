@@ -211,6 +211,14 @@ export const apiService = {
     return response.data;
   },
 
+  async changePassword(currentPassword, newPassword) {
+    const response = await axiosInstance.put(API.ENDPOINTS.AUTH_CHANGE_PASSWORD, {
+      currentPassword,
+      newPassword
+    });
+    return response.data;
+  },
+
   // Invoices
   async getInvoices() {
     const response = await axiosInstance.get(API.ENDPOINTS.INVOICES);

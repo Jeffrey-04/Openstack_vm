@@ -130,4 +130,42 @@ const logout = async (req, res) => {
   res.json({ success: true, message: 'Logged out (client should discard token)' });
 };
 
-module.exports = { register, login, me, logout };
+const changePassword = async (req, res, next) => {
+  logger.request('PUT', '/api/auth/change-password');
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const details = errors.array();
+      logger.resError(400, 'Validation failed', details);
+      return res.status(400).json({
+        error: { message: 'Validation failed', status: 400, details }
+      });
+    }
+
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({
+        error: { message: 'Not authenticated', status: 401 }
+      });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const valid = await user.comparePassword(currentPassword);
+    if (!valid) {
+      logger.warn('Change password: invalid current password', user.email);
+      return res.status(401).json({
+        error: { message: 'Mot de passe actuel incorrect', status: 401 }
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await user.update({ passwordHash });
+    logger.info('Change password: success', user.id);
+    res.json({ success: true, message: 'Mot de passe modifié.' });
+  } catch (err) {
+    logger.error('Change password: exception', err.message, err.stack);
+    next(err);
+  }
+};
+
+module.exports = { register, login, me, logout, changePassword };
