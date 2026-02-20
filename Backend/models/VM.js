@@ -30,6 +30,12 @@ const VM = sequelize.define('VM', {
     allowNull: true,
     defaultValue: 'UNKNOWN'
   },
+  expiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'When set, VM is considered rented until this time; cleanup job may delete after',
+    field: 'expires_at'
+  },
   createdAt: {
     type: DataTypes.DATE,
     allowNull: false,

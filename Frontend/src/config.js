@@ -20,6 +20,7 @@ export const API = {
     VM_SCALING_POLICY: (id) => `/api/vms/${id}/scaling-policy`,
     VM_METRICS: (id) => `/api/vms/${id}/metrics`,
     VM_SCALING_HISTORY: (id) => `/api/vms/${id}/scaling-history`,
+    VM_CONSOLE: (id) => `/api/vms/${id}/console`,
     VM_TEMPLATES: '/api/vm-templates',
     FLAVORS: '/api/flavors',
     FLAVOR_BY_ID: (id) => `/api/flavors/${id}`,

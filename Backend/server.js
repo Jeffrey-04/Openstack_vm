@@ -5,7 +5,9 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-const { testConnection, syncDatabase } = require('./models');
+const { testConnection, runMigrations, VM, User } = require('./models');
+const { Op } = require('sequelize');
+const openstack = require('./config/openstack');
 const { runThirtyMinuteBillingJob, runDailyPaymentJob } = require('./services/billingEngine');
 const { MetricsMonitor } = require('./services/metricsMonitor');
 const { AutoScaler } = require('./services/autoScaler');
@@ -13,6 +15,7 @@ const { AutoScaler } = require('./services/autoScaler');
 const BILLING_JOB_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const DAILY_PAYMENT_JOB_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const SCALING_CHECK_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const EXPIRED_VM_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
 const app = express();
 
@@ -121,7 +124,7 @@ const startServer = async () => {
   if (!ok && process.env.NODE_ENV !== 'test') {
     console.warn('Database connection failed; auth will not work. Set DATABASE_URL or use SQLite.');
   }
-  await syncDatabase();
+  await runMigrations();
   if (process.env.NODE_ENV === 'test') return;
 
   // 30-min billing job: run for last slice, then every 30 min
@@ -144,6 +147,29 @@ const startServer = async () => {
   setInterval(() => {
     metricsMonitor.checkThresholds().catch((err) => console.error('Scaling check error:', err.message));
   }, SCALING_CHECK_INTERVAL_MS);
+
+  const runExpiredVmCleanup = async () => {
+    try {
+      const expired = await VM.findAll({
+        where: { expiresAt: { [Op.lt]: new Date() } },
+        include: [{ model: User, attributes: ['openstackProjectId'] }]
+      });
+      for (const vm of expired) {
+        const projectId = vm.User?.openstackProjectId || null;
+        try {
+          await openstack.deleteServer(vm.instanceId, projectId);
+        } catch (e) {
+          logger.warn('Expired VM delete OpenStack', vm.instanceId, e.message);
+        }
+        await vm.destroy();
+      }
+      if (expired.length > 0) logger.info('Expired VM cleanup', { count: expired.length });
+    } catch (err) {
+      logger.error('Expired VM cleanup error', err.message);
+    }
+  };
+  setInterval(runExpiredVmCleanup, EXPIRED_VM_CLEANUP_INTERVAL_MS);
+  runExpiredVmCleanup().catch((e) => logger.error('Expired VM cleanup', e.message));
 
   app.listen(PORT, () => {
     console.log(`

@@ -2,6 +2,8 @@ const bcrypt = require('bcryptjs');
 const { validationResult } = require('express-validator');
 const { User } = require('../models');
 const { signToken } = require('../middleware/auth');
+const openstack = require('../config/openstack');
+const { createProject } = require('../services/keystoneSync');
 const logger = require('../utils/logger');
 
 const register = async (req, res, next) => {
@@ -32,6 +34,20 @@ const register = async (req, res, next) => {
       role: role === 'admin' ? 'admin' : 'client',
       passwordHash: password
     });
+
+    if (process.env.KEYSTONE_MULTI_TENANT === 'true') {
+      try {
+        const adminToken = await openstack.getAuthToken();
+        const projectName = `vm-user-${user.id.replace(/-/g, '')}`.slice(0, 64);
+        const projectId = await createProject(projectName, adminToken);
+        if (projectId) {
+          await user.update({ openstackProjectId: projectId });
+          logger.info('Register: Keystone project created', projectId);
+        }
+      } catch (e) {
+        logger.warn('Register: Keystone project creation skipped', e.message);
+      }
+    }
 
     const token = signToken(user);
     logger.info('Register: success', user.id, email);

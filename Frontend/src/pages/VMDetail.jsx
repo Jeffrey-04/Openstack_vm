@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import apiService from '../services/api';
 import toast from 'react-hot-toast';
 import Skeleton from '../components/Skeleton';
+import { UsageChart } from '../components/charts/UsageChart';
 import './VMDetail.css';
 
 function copyToClipboard(text) {
@@ -47,11 +48,23 @@ function VMDetail() {
   const [scalingHistory, setScalingHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [consoleLoading, setConsoleLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     loadVm();
   }, [id]);
+
+  useEffect(() => {
+    if (!vm || vm.status !== 'BUILD') return;
+    const interval = setInterval(() => {
+      apiService.getVM(id).then((res) => {
+        const server = res.server;
+        if (server) setVm(server);
+      }).catch(() => {});
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [id, vm?.status]);
 
   const loadVm = async () => {
     try {
@@ -136,6 +149,23 @@ function VMDetail() {
 
   const cpuMetric = (metrics.cpu_util || [])[0]?.value;
   const memMetric = (metrics.memory_usage || metrics.mem_util || [])[0]?.value;
+  const chartData = useMemo(() => {
+    const cpu = (metrics.cpu_util || []).slice(0, 30).reverse();
+    const mem = (metrics.memory_usage || metrics.mem_util || []).slice(0, 30).reverse();
+    const byTime = {};
+    cpu.forEach((p) => {
+      const t = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+      if (!byTime[t]) byTime[t] = { name: t, cpu_util: undefined, memory_usage: undefined };
+      byTime[t].cpu_util = p.value;
+    });
+    mem.forEach((p) => {
+      const t = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+      if (!byTime[t]) byTime[t] = { name: t, cpu_util: undefined, memory_usage: undefined };
+      byTime[t].memory_usage = p.value;
+    });
+    return Object.values(byTime).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [metrics.cpu_util, metrics.memory_usage, metrics.mem_util]);
+  const hasChartData = chartData.length > 1;
 
   return (
     <div className="vm-detail">
@@ -224,6 +254,19 @@ function VMDetail() {
             <div className="vm-detail-metric-value">—</div>
           </div>
         </div>
+        {hasChartData && (
+          <div className="vm-detail-charts" style={{ marginTop: '1.5rem' }}>
+            <UsageChart
+              data={chartData}
+              dataKeys={[
+                { key: 'cpu_util', color: '#6366f1', name: 'CPU %' },
+                { key: 'memory_usage', color: '#22c55e', name: 'Mémoire %' }
+              ]}
+              title="CPU et mémoire dans le temps"
+              height={220}
+            />
+          </div>
+        )}
       </section>
 
       <section className="vm-detail-section">
@@ -269,7 +312,7 @@ function VMDetail() {
             <span className="vm-detail-info-label">Nom d'utilisateur SSH</span>
             <span className="vm-detail-info-value">
               root
-              <button type="button" className="vm-detail-btn-icon" onClick={() => handleCopy('root', 'Nom d\'utilisateur')} title="Copier">📋</button>
+              <button type="button" className="vm-detail-btn-icon" onClick={() => handleCopy('root', 'Nom d\'utilisateur')} title="Copier">Copier</button>
             </span>
           </div>
           <div className="vm-detail-info-row">
@@ -277,7 +320,7 @@ function VMDetail() {
             <span className="vm-detail-info-value">
               {firstAddr || '—'}
               {firstAddr && (
-                <button type="button" className="vm-detail-btn-icon" onClick={() => handleCopy(firstAddr, 'Adresse IP')} title="Copier">📋</button>
+                <button type="button" className="vm-detail-btn-icon" onClick={() => handleCopy(firstAddr, 'Adresse IP')} title="Copier">Copier</button>
               )}
             </span>
           </div>
@@ -340,6 +383,29 @@ function VMDetail() {
             <li>Collez la commande : <code>{sshLine || 'ssh root@VOTRE_IP'}</code></li>
             <li>Entrez le mot de passe root (modifiable dans Paramètres).</li>
           </ol>
+          {vm.status === 'ACTIVE' && (
+            <div style={{ marginTop: '1rem' }}>
+              <button
+                type="button"
+                className="vm-detail-btn vm-detail-btn-restart"
+                disabled={consoleLoading}
+                onClick={async () => {
+                  setConsoleLoading(true);
+                  try {
+                    const res = await apiService.getVmConsole(id);
+                    if (res?.url) window.open(res.url, '_blank', 'noopener,noreferrer');
+                    else toast.error('Console non disponible');
+                  } catch (e) {
+                    toast.error(e.response?.data?.error?.message || 'Impossible d\'ouvrir la console');
+                  } finally {
+                    setConsoleLoading(false);
+                  }
+                }}
+              >
+                {consoleLoading ? 'Ouverture...' : 'Accéder à la console'}
+              </button>
+            </div>
+          )}
           <p className="vm-detail-terminal-note">
             Une console navigateur (noVNC) peut être disponible depuis le dashboard OpenStack si votre hébergeur l'expose.
           </p>

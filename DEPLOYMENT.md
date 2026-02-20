@@ -64,6 +64,10 @@ CORS_ORIGIN=http://VOTRE_IP_VPS
 - `VotreMotDePasse` par le mot de passe admin d'OpenStack
 - `VOTRE_IP_VPS` par l'adresse IP de votre VPS
 
+**Base de données (migrations):**
+- Ne versionnez jamais le fichier `.sqlite` (ajoutez `Backend/database.sqlite` à `.gitignore`).
+- La structure de la base est gérée par des migrations Sequelize. Au démarrage, le backend exécute automatiquement les migrations (`runMigrations`). Pour les lancer manuellement : `cd Backend && npm run migrate`.
+
 ## Étape 3: Configuration du Frontend
 
 ```bash

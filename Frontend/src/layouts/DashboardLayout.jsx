@@ -1,27 +1,54 @@
 import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  Server,
+  ShoppingCart,
+  PlusCircle,
+  Settings,
+  CreditCard,
+  Box,
+  TrendingUp,
+  Users,
+  Cloud,
+  Menu
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './DashboardLayout.css';
 
+const ICON_MAP = {
+  LayoutDashboard,
+  Server,
+  ShoppingCart,
+  PlusCircle,
+  Settings,
+  CreditCard,
+  Box,
+  TrendingUp,
+  Users,
+  Cloud,
+  Menu
+};
+
 const CLIENT_SIDEBAR_ITEMS = [
-  { label: 'Overview', path: '/client', icon: '◉' },
-  { label: 'Mes VMs', path: '/client/vms', icon: '▣' },
-  { label: 'Marketplace', path: '/client/marketplace', icon: '◇' },
-  { label: 'Créer une VM', path: '/client/create', icon: '⊕' },
-  { label: 'OpenStack', path: '/dashboard', external: true, icon: '⚙' },
-  { label: 'Paramètres', path: '/client/settings', icon: '⚙' },
-  { label: 'Facturation', path: '/client/billing', icon: '◈' },
+  { label: 'Overview', path: '/client', icon: 'LayoutDashboard' },
+  { label: 'Mes VMs', path: '/client/vms', icon: 'Server' },
+  { label: 'Marketplace', path: '/client/marketplace', icon: 'ShoppingCart' },
+  { label: 'Créer une VM', path: '/client/create', icon: 'PlusCircle' },
+  { label: 'OpenStack', path: '/dashboard', external: true, icon: 'Settings' },
+  { label: 'Paramètres', path: '/client/settings', icon: 'Settings' },
+  { label: 'Facturation', path: '/client/billing', icon: 'CreditCard' },
 ];
 
 const ADMIN_SIDEBAR_ITEMS = [
-  { label: 'Overview', path: '/admin', icon: '◉' },
-  { label: 'VMs', path: '/admin/vms', icon: '▣' },
-  { label: 'Créer une VM', path: '/admin/create', icon: '⊕' },
-  { label: 'Modèles VM', path: '/admin/vm-templates', icon: '📦' },
-  { label: 'Règle scale up', path: '/admin/scale-up-rule', icon: '📈' },
-  { label: 'Utilisateurs', path: '/admin/users', icon: '◐' },
-  { label: 'Facturation', path: '/admin/billing', icon: '◈' },
-  { label: 'Paramètres', path: '/admin/settings', icon: '⚙' },
+  { label: 'Overview', path: '/admin', icon: 'LayoutDashboard' },
+  { label: 'VMs', path: '/admin/vms', icon: 'Server' },
+  { label: 'Créer une VM', path: '/admin/create', icon: 'PlusCircle' },
+  { label: 'Modèles VM', path: '/admin/vm-templates', icon: 'Box' },
+  { label: 'Règle scale up', path: '/admin/scale-up-rule', icon: 'TrendingUp' },
+  { label: 'Utilisateurs', path: '/admin/users', icon: 'Users' },
+  { label: 'Facturation', path: '/admin/billing', icon: 'CreditCard' },
+  { label: 'Paramètres', path: '/admin/settings', icon: 'Settings' },
 ];
 
 const TITLE_MAP = {
@@ -61,7 +88,7 @@ export default function DashboardLayout({ type = 'client' }) {
       <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : 'collapsed'} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <Link to={type === 'client' ? '/client' : '/admin'} className="sidebar-brand">
-            <span className="sidebar-brand-icon">☁</span>
+            <span className="sidebar-brand-icon"><Cloud size={24} /></span>
             <span className="sidebar-brand-text">VM Marketplace</span>
           </Link>
         </div>
@@ -75,7 +102,7 @@ export default function DashboardLayout({ type = 'client' }) {
                 rel="noopener noreferrer"
                 className="sidebar-item"
               >
-                <span className="sidebar-item-icon">{item.icon}</span>
+                <span className="sidebar-item-icon">{React.createElement(ICON_MAP[item.icon] || Settings, { size: 18 })}</span>
                 <span className="sidebar-item-label">{item.label}</span>
               </a>
             ) : (
@@ -84,7 +111,7 @@ export default function DashboardLayout({ type = 'client' }) {
                 to={item.path}
                 className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}
               >
-                <span className="sidebar-item-icon">{item.icon}</span>
+                <span className="sidebar-item-icon">{React.createElement(ICON_MAP[item.icon] || Settings, { size: 18 })}</span>
                 <span className="sidebar-item-label">{item.label}</span>
               </Link>
             )
@@ -111,7 +138,7 @@ export default function DashboardLayout({ type = 'client' }) {
             onClick={() => setMobileMenuOpen((o) => !o)}
             aria-label="Menu"
           >
-            ☰
+            <Menu size={24} />
           </button>
           <div className="topbar-breadcrumb">
             <nav className="breadcrumb" aria-label="Fil d'Ariane">

@@ -61,7 +61,7 @@ function Marketplace() {
     <div>
       <div className="card" style={{ marginBottom: '2rem' }}>
         <div className="card-header">
-          <h1 className="card-title">🛒 Marketplace</h1>
+          <h1 className="card-title">Marketplace</h1>
           <p className="card-subtitle">Choisissez la configuration parfaite pour votre machine virtuelle</p>
         </div>
       </div>
@@ -79,7 +79,7 @@ function Marketplace() {
               </div>
               
               <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>💻</div>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#64748b' }} />
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
                   {flavor.name}
                 </h3>
@@ -87,15 +87,15 @@ function Marketplace() {
 
               <div style={{ marginBottom: '1.5rem', borderTop: '2px solid #f3f4f6', paddingTop: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ color: '#6b7280' }}>💾 RAM:</span>
+                  <span style={{ color: '#6b7280' }}>RAM:</span>
                   <strong>{formatRAM(flavor.ram)}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ color: '#6b7280' }}>⚡ vCPUs:</span>
+                  <span style={{ color: '#6b7280' }}>vCPUs:</span>
                   <strong>{flavor.vcpus}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ color: '#6b7280' }}>💿 Disque:</span>
+                  <span style={{ color: '#6b7280' }}>Disque:</span>
                   <strong>{flavor.disk} GB</strong>
                 </div>
               </div>
@@ -132,7 +132,7 @@ function Marketplace() {
       )}
 
       <div className="card" style={{ marginTop: '2rem', background: '#fef3c7' }}>
-        <h3 style={{ marginBottom: '0.5rem' }}>💰 Tarification transparente</h3>
+        <h3 style={{ marginBottom: '0.5rem' }}>Tarification transparente</h3>
         <p style={{ color: '#92400e', marginBottom: '0' }}>
           Tous les prix sont mensuels en FCFA. Pas de frais cachés. Annulez à tout moment.
           Facturation à l'heure pour plus de flexibilité.

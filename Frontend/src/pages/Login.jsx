@@ -54,7 +54,7 @@ export default function Login() {
     <div className="auth-split">
       <div className="auth-split-form">
         <Link to="/" className="auth-logo" aria-label="Accueil">
-          <span className="auth-logo-icon">☁</span>
+          <span className="auth-logo-icon" aria-hidden="true">VM</span>
           <span>VM Marketplace</span>
         </Link>
         <h1>Bienvenue</h1>
@@ -106,7 +106,7 @@ export default function Login() {
                 aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                 tabIndex={-1}
               >
-                {showPassword ? '🙈' : '👁'}
+                {showPassword ? 'Masquer' : 'Afficher'}
               </button>
             </div>
           </div>

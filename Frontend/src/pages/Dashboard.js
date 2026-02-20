@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import apiService from '../services/api';
 
 function Dashboard() {
+  const location = useLocation();
+  const basePath = location.pathname.startsWith('/admin') ? '/admin' : '/client';
   const [stats, setStats] = useState({
     totalVMs: 0,
     activeVMs: 0,
@@ -92,25 +94,25 @@ function Dashboard() {
 
       <div className="grid grid-4" style={{ marginBottom: '2rem' }}>
         <div className="stat-card">
-          <div className="stat-icon">💻</div>
+          <div className="stat-icon" aria-hidden="true" />
           <div className="stat-value">{stats.totalVMs}</div>
           <div className="stat-label">VMs Totales</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">✅</div>
+          <div className="stat-icon" aria-hidden="true" />
           <div className="stat-value">{stats.activeVMs}</div>
           <div className="stat-label">VMs Actives</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">⚙️</div>
+          <div className="stat-icon" aria-hidden="true" />
           <div className="stat-value">{stats.totalFlavors}</div>
           <div className="stat-label">Configurations</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">💿</div>
+          <div className="stat-icon" aria-hidden="true" />
           <div className="stat-value">{stats.totalImages}</div>
           <div className="stat-label">Images OS</div>
         </div>
@@ -118,25 +120,25 @@ function Dashboard() {
 
       <div className="grid grid-2">
         <div className="card">
-          <h2 style={{ marginBottom: '1rem' }}>🚀 Actions Rapides</h2>
+          <h2 style={{ marginBottom: '1rem' }}>Actions Rapides</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <Link to="/create" className="btn btn-primary">
-              ➕ Créer une nouvelle VM
+            <Link to={`${basePath}/create`} className="btn btn-primary">
+              Créer une nouvelle VM
             </Link>
-            <Link to="/marketplace" className="btn btn-secondary">
-              🛒 Explorer le Marketplace
+            <Link to={`${basePath}/marketplace`} className="btn btn-secondary">
+              Explorer le Marketplace
             </Link>
-            <Link to="/my-vms" className="btn btn-secondary">
-              💻 Gérer mes VMs
+            <Link to={`${basePath}/vms`} className="btn btn-secondary">
+              Gérer mes VMs
             </Link>
             <a href="/dashboard" target="_blank" className="btn btn-warning">
-              🔧 Ouvrir OpenStack Dashboard
+              Ouvrir OpenStack Dashboard
             </a>
           </div>
         </div>
 
         <div className="card">
-          <h2 style={{ marginBottom: '1rem' }}>📊 Informations Système</h2>
+          <h2 style={{ marginBottom: '1rem' }}>Informations Système</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: '#f9fafb', borderRadius: '6px' }}>
               <span><strong>Backend:</strong></span>

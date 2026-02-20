@@ -146,6 +146,11 @@ export const apiService = {
     return response.data;
   },
 
+  async getVmConsole(vmId) {
+    const response = await axiosInstance.get(API.ENDPOINTS.VM_CONSOLE(vmId));
+    return response.data;
+  },
+
   async deleteVM(id) {
     const response = await axiosInstance.delete(API.ENDPOINTS.VM_BY_ID(id));
     return response.data;

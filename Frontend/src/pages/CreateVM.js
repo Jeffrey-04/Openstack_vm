@@ -171,7 +171,7 @@ function CreateVM() {
     <div>
       <div className="card" style={{ marginBottom: '2rem' }}>
         <div className="card-header">
-          <h1 className="card-title">➕ Créer une Machine Virtuelle</h1>
+          <h1 className="card-title">Créer une Machine Virtuelle</h1>
           <p className="card-subtitle">Configurez et déployez votre nouvelle VM</p>
         </div>
       </div>
@@ -230,7 +230,7 @@ function CreateVM() {
             {mode === VM_MODE_TEMPLATE && (
               <div className="form-group">
                 <label className="form-label">
-                  📦 Modèle préconfiguré <span style={{ color: 'red' }}>*</span>
+                  Modèle préconfiguré <span style={{ color: 'red' }}>*</span>
                 </label>
                 <select
                   name="templateId"
@@ -289,7 +289,7 @@ function CreateVM() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">
-                    💿 Image <span style={{ color: 'red' }}>*</span>
+                    Image <span style={{ color: 'red' }}>*</span>
                   </label>
                   <select
                     name="imageRef"
@@ -310,7 +310,7 @@ function CreateVM() {
             )}
 
             <div className="form-group">
-              <label className="form-label">🌐 Réseau</label>
+              <label className="form-label">Réseau</label>
               <select name="networkId" value={formData.networkId} onChange={handleChange} className="form-control">
                 <option value="">-- Auto --</option>
                 {networks.map(network => (
@@ -322,7 +322,7 @@ function CreateVM() {
             </div>
 
             <div className="card" style={{ marginTop: '1.5rem', padding: '1rem', background: '#f9fafb' }}>
-              <h3 style={{ marginBottom: '0.75rem' }}>📈 Mise à l’échelle (scaling)</h3>
+              <h3 style={{ marginBottom: '0.75rem' }}>Mise à l’échelle (scaling)</h3>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                 <input
                   type="checkbox"
@@ -368,7 +368,7 @@ function CreateVM() {
                 className="btn btn-primary"
                 style={{ flex: 1 }}
               >
-                {creating ? '⏳ Création en cours...' : '🚀 Créer la VM'}
+                {creating ? 'Création en cours...' : 'Créer la VM'}
               </button>
               <button
                 type="button"
@@ -383,7 +383,7 @@ function CreateVM() {
 
         {/* Récapitulatif */}
         <div className="card">
-          <h2 style={{ marginBottom: '1.5rem' }}>📋 Récapitulatif</h2>
+          <h2 style={{ marginBottom: '1.5rem' }}>Récapitulatif</h2>
 
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px', marginBottom: '0.75rem' }}>
@@ -405,9 +405,9 @@ function CreateVM() {
               <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px', marginBottom: '0.75rem' }}>
                 <div style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Sur mesure</div>
                 <div style={{ fontSize: '0.875rem', color: '#4b5563' }}>
-                  <div>⚡ vCPUs: {formData.vcpus}</div>
-                  <div>💾 RAM: {formData.ramGb} Go</div>
-                  <div>💿 Disque: {formData.diskGb} Go</div>
+                  <div>vCPUs: {formData.vcpus}</div>
+                  <div>RAM: {formData.ramGb} Go</div>
+                  <div>Disque: {formData.diskGb} Go</div>
                   <div>Image: {getSelectedImage()?.name || 'À choisir'}</div>
                 </div>
               </div>
@@ -424,7 +424,7 @@ function CreateVM() {
           </div>
 
           <div className="alert alert-info" style={{ marginTop: '1.5rem' }}>
-            <strong>ℹ️ Info:</strong> Votre VM sera prête dans 2-5 minutes après la création.
+            <strong>Info:</strong> Votre VM sera prête dans 2-5 minutes après la création.
           </div>
         </div>
       </div>

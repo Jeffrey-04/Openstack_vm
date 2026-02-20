@@ -142,7 +142,7 @@ export default function AdminOverview() {
             {vms.slice(0, 10).map((vm) => (
               <div key={vm.id} className="admin-vm-card">
                 <div className="admin-vm-card-header">
-                  <span className="admin-vm-icon">▣</span>
+                  <span className="admin-vm-icon" aria-hidden="true" />
                   <strong>{vm.name}</strong>
                   <span className={`admin-status-badge ${getStatusBadge(vm.status)}`}>
                     {getStatusText(vm.status)}
@@ -154,8 +154,8 @@ export default function AdminOverview() {
                   <div><span className="admin-vm-card-label">IP</span> <code className="admin-ip-address">{vm.addresses && Object.values(vm.addresses)[0]?.[0]?.addr || '—'}</code></div>
                 </div>
                 <div className="admin-action-buttons">
-                  <button type="button" className="admin-btn-icon" title="Voir détails">👁</button>
-                  <button type="button" className="admin-btn-icon" title="Modifier">✏</button>
+                  <button type="button" className="admin-btn-icon" title="Voir détails">Voir</button>
+                  <button type="button" className="admin-btn-icon" title="Modifier">Modifier</button>
                 </div>
               </div>
             ))}
@@ -178,7 +178,7 @@ export default function AdminOverview() {
                   <tr key={vm.id}>
                     <td>
                       <div className="admin-vm-name-cell">
-                        <span className="admin-vm-icon">▣</span>
+                        <span className="admin-vm-icon" aria-hidden="true" />
                         {vm.name}
                       </div>
                     </td>
@@ -204,8 +204,8 @@ export default function AdminOverview() {
                     </td>
                     <td>
                       <div className="admin-action-buttons">
-                        <button type="button" className="admin-btn-icon" title="Voir détails">👁</button>
-                        <button type="button" className="admin-btn-icon" title="Modifier">✏</button>
+                        <button type="button" className="admin-btn-icon" title="Voir détails">Voir</button>
+                        <button type="button" className="admin-btn-icon" title="Modifier">Modifier</button>
                       </div>
                     </td>
                   </tr>
@@ -235,28 +235,28 @@ export default function AdminOverview() {
 
       <div className="admin-quick-stats">
         <div className="admin-card admin-quick-stat">
-          <span className="admin-quick-stat-icon">👥</span>
+          <span className="admin-quick-stat-icon" aria-hidden="true" />
           <div>
             <div className="admin-quick-stat-value">{stats.totalUsers}</div>
             <div className="admin-quick-stat-label">Utilisateurs totaux</div>
           </div>
         </div>
         <div className="admin-card admin-quick-stat">
-          <span className="admin-quick-stat-icon">✅</span>
+          <span className="admin-quick-stat-icon" aria-hidden="true" />
           <div>
             <div className="admin-quick-stat-value">{stats.activeUsers}</div>
             <div className="admin-quick-stat-label">Utilisateurs actifs</div>
           </div>
         </div>
         <div className="admin-card admin-quick-stat">
-          <span className="admin-quick-stat-icon">💰</span>
+          <span className="admin-quick-stat-icon" aria-hidden="true" />
           <div>
             <div className="admin-quick-stat-value">{stats.monthlyRevenue.toLocaleString('fr-FR', { style: 'currency', currency: 'XAF', minimumFractionDigits: 0 })}</div>
             <div className="admin-quick-stat-label">Revenus ce mois</div>
           </div>
         </div>
         <div className="admin-card admin-quick-stat">
-          <span className="admin-quick-stat-icon">📈</span>
+          <span className="admin-quick-stat-icon" aria-hidden="true" />
           <div>
             <div className="admin-quick-stat-value">{stats.revenueGrowth >= 0 ? '+' : ''}{stats.revenueGrowth.toFixed(1)}%</div>
             <div className="admin-quick-stat-label">Croissance revenus</div>

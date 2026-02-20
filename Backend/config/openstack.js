@@ -16,15 +16,20 @@ class OpenStackClient {
     this.authToken = null;
     this.tokenExpiry = null;
     this.projectId = null;
+    this.tokenCache = {};
   }
 
-  async getAuthToken() {
-    // Check if we have a valid token
-    if (this.authToken && this.tokenExpiry && new Date() < this.tokenExpiry) {
-      return this.authToken;
+  async getAuthToken(projectId = null) {
+    const cacheKey = projectId || 'default';
+    const cached = this.tokenCache[cacheKey];
+    if (cached && cached.expiry && new Date() < cached.expiry) {
+      return cached.token;
     }
 
     try {
+      const scope = projectId
+        ? { project: { id: projectId } }
+        : { project: { name: process.env.OS_PROJECT_NAME, domain: { id: 'default' } } };
       const response = await axios.post(`${process.env.KEYSTONE_URL}/auth/tokens`, {
         auth: {
           identity: {
@@ -37,32 +42,28 @@ class OpenStackClient {
               }
             }
           },
-          scope: {
-            project: {
-              name: process.env.OS_PROJECT_NAME,
-              domain: { id: 'default' }
-            }
-          }
+          scope
         }
       });
 
-      this.authToken = response.headers['x-subject-token'];
-      this.projectId = response.data.token.project.id;
-      
-      // Set expiry to 1 hour from now (OpenStack tokens typically last 1 hour)
-      this.tokenExpiry = new Date(Date.now() + 55 * 60 * 1000); // 55 minutes to be safe
-
-      return this.authToken;
+      const token = response.headers['x-subject-token'];
+      const expiry = new Date(Date.now() + 55 * 60 * 1000);
+      this.tokenCache[cacheKey] = { token, expiry };
+      if (!projectId) {
+        this.authToken = token;
+        this.tokenExpiry = expiry;
+        this.projectId = response.data.token.project.id;
+      }
+      return token;
     } catch (error) {
       logConnectionErrorOnce('keystone', 'Auth: ' + (error.message || error.code || 'failed'));
       throw new Error('Failed to authenticate with OpenStack');
     }
   }
 
-  async makeRequest(method, url, data = null) {
+  async makeRequest(method, url, data = null, projectId = null) {
     try {
-      const token = await this.getAuthToken();
-      
+      const token = await this.getAuthToken(projectId);
       const config = {
         method,
         url,
@@ -71,11 +72,7 @@ class OpenStackClient {
           'Content-Type': 'application/json'
         }
       };
-
-      if (data) {
-        config.data = data;
-      }
-
+      if (data) config.data = data;
       const response = await axios(config);
       return response.data;
     } catch (error) {
@@ -90,38 +87,48 @@ class OpenStackClient {
     return this.makeRequest('GET', `${process.env.NOVA_URL}/servers/detail`);
   }
 
-  async getServer(serverId) {
-    return this.makeRequest('GET', `${process.env.NOVA_URL}/servers/${serverId}`);
+  async getServer(serverId, projectId = null) {
+    return this.makeRequest('GET', `${process.env.NOVA_URL}/servers/${serverId}`, null, projectId);
   }
 
-  async createServer(serverData) {
+  async createServer(serverData, projectId = null) {
     return this.makeRequest('POST', `${process.env.NOVA_URL}/servers`, {
       server: serverData
-    });
+    }, projectId);
   }
 
-  async deleteServer(serverId) {
-    return this.makeRequest('DELETE', `${process.env.NOVA_URL}/servers/${serverId}`);
+  async deleteServer(serverId, projectId = null) {
+    return this.makeRequest('DELETE', `${process.env.NOVA_URL}/servers/${serverId}`, null, projectId);
   }
 
-  async serverAction(serverId, action) {
-    return this.makeRequest('POST', `${process.env.NOVA_URL}/servers/${serverId}/action`, action);
+  async serverAction(serverId, action, projectId = null) {
+    return this.makeRequest('POST', `${process.env.NOVA_URL}/servers/${serverId}/action`, action, projectId);
   }
 
-  async resizeServer(serverId, flavorRef) {
-    return this.serverAction(serverId, { resize: { flavorRef } });
+  async resizeServer(serverId, flavorRef, projectId = null) {
+    return this.serverAction(serverId, { resize: { flavorRef } }, projectId);
   }
 
-  async confirmResize(serverId) {
-    return this.serverAction(serverId, { 'confirmResize': null });
+  async confirmResize(serverId, projectId = null) {
+    return this.serverAction(serverId, { 'confirmResize': null }, projectId);
+  }
+
+  async getConsoleUrl(serverId, projectId = null) {
+    const result = await this.makeRequest('POST', `${process.env.NOVA_URL}/servers/${serverId}/remote-consoles`, {
+      remote_console: {
+        protocol: 'vnc',
+        type: 'novnc'
+      }
+    }, projectId);
+    return result.remote_console?.url || null;
   }
 
   async listFlavors() {
     return this.makeRequest('GET', `${process.env.NOVA_URL}/flavors/detail`);
   }
 
-  async getFlavor(flavorId) {
-    return this.makeRequest('GET', `${process.env.NOVA_URL}/flavors/${flavorId}`);
+  async getFlavor(flavorId, projectId = null) {
+    return this.makeRequest('GET', `${process.env.NOVA_URL}/flavors/${flavorId}`, null, projectId);
   }
 
   // Glance (Images) API methods

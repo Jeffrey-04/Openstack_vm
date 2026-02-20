@@ -34,6 +34,12 @@ const User = sequelize.define('User', {
     defaultValue: 'manual',
     field: 'payment_mode'
   },
+  openstackProjectId: {
+    type: DataTypes.STRING(64),
+    allowNull: true,
+    comment: 'Keystone project ID for multi-tenant isolation when KEYSTONE_MULTI_TENANT=true',
+    field: 'openstack_project_id'
+  },
   createdAt: {
     type: DataTypes.DATE,
     allowNull: false,

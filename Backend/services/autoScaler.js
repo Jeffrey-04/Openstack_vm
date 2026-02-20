@@ -1,8 +1,13 @@
-const { ScalingPolicy, ScalingEvent, GlobalScaleUpRule, VM } = require('../models');
+const { ScalingPolicy, ScalingEvent, GlobalScaleUpRule, VM, User } = require('../models');
 const openstack = require('../config/openstack');
 const { Op } = require('sequelize');
 
 const COOLDOWN_MINUTES = 5;
+
+async function getProjectIdForInstance(instanceId) {
+  const vm = await VM.findOne({ where: { instanceId }, include: [{ model: User, attributes: ['openstackProjectId'] }] });
+  return vm?.User?.openstackProjectId || null;
+}
 
 async function isInCooldown(instanceId) {
   const last = await ScalingEvent.findOne({
@@ -26,12 +31,12 @@ async function findNextFlavor(currentFlavorId, direction) {
 }
 
 /** Find smallest flavor that has at least current + (deltaVcpus, deltaRamMb). */
-async function findFlavorForScaleUp(currentFlavorId, deltaVcpus, deltaRamMb) {
+async function findFlavorForScaleUp(currentFlavorId, deltaVcpus, deltaRamMb, projectId = null) {
   const data = await openstack.listFlavors();
   const flavors = (data.flavors || []).slice();
   let current;
   try {
-    const res = await openstack.getFlavor(currentFlavorId);
+    const res = await openstack.getFlavor(currentFlavorId, projectId);
     current = res.flavor || res;
   } catch (e) {
     return findNextFlavor(currentFlavorId, 'up');
@@ -48,9 +53,10 @@ async function findFlavorForScaleUp(currentFlavorId, deltaVcpus, deltaRamMb) {
 
 async function scaleUp(instanceId, policy, currentValue) {
   if (await isInCooldown(instanceId)) return;
+  const projectId = await getProjectIdForInstance(instanceId);
   let server;
   try {
-    server = await openstack.getServer(instanceId);
+    server = await openstack.getServer(instanceId, projectId);
   } catch (e) {
     console.error('getServer failed:', e.message);
     return;
@@ -65,7 +71,8 @@ async function scaleUp(instanceId, policy, currentValue) {
     nextFlavor = await findFlavorForScaleUp(
       currentFlavorId,
       rule.deltaVcpus,
-      rule.deltaRamMb
+      rule.deltaRamMb,
+      projectId
     );
   }
   if (!nextFlavor) nextFlavor = await findNextFlavor(currentFlavorId, 'up');
@@ -75,7 +82,7 @@ async function scaleUp(instanceId, policy, currentValue) {
     ? (currentValue.cpu_util ?? currentValue.memory_usage ?? 0)
     : currentValue;
   try {
-    await openstack.resizeServer(sid, nextFlavor.id);
+    await openstack.resizeServer(sid, nextFlavor.id, projectId);
     await ScalingEvent.create({
       instanceId: sid,
       action: 'scale_up',
@@ -94,9 +101,10 @@ async function scaleUp(instanceId, policy, currentValue) {
 
 async function scaleDown(instanceId, policy, currentValue) {
   if (await isInCooldown(instanceId)) return;
+  const projectId = await getProjectIdForInstance(instanceId);
   let server;
   try {
-    server = await openstack.getServer(instanceId);
+    server = await openstack.getServer(instanceId, projectId);
   } catch (e) {
     console.error('getServer failed:', e.message);
     return;
@@ -108,7 +116,7 @@ async function scaleDown(instanceId, policy, currentValue) {
   let nextFlavor = null;
   if (policy.baseFlavorId && policy.baseFlavorId !== currentFlavorId) {
     try {
-      const res = await openstack.getFlavor(policy.baseFlavorId);
+      const res = await openstack.getFlavor(policy.baseFlavorId, projectId);
       nextFlavor = res.flavor || res;
     } catch (e) {
       // fallback to findNextFlavor
@@ -121,7 +129,7 @@ async function scaleDown(instanceId, policy, currentValue) {
     ? (currentValue.cpu_util ?? currentValue.memory_usage ?? 0)
     : currentValue;
   try {
-    await openstack.resizeServer(sid, nextFlavor.id);
+    await openstack.resizeServer(sid, nextFlavor.id, projectId);
     await ScalingEvent.create({
       instanceId: sid,
       action: 'scale_down',

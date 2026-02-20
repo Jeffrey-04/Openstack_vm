@@ -26,6 +26,7 @@ router.use(authenticate);
 // List VMs for the current user (from DB, optionally sync status from OpenStack)
 router.get('/', async (req, res, next) => {
   try {
+    const projectId = req.user?.openstackProjectId || null;
     const vms = await VM.findAll({
       where: { userId: req.userId },
       order: [['createdAt', 'DESC']]
@@ -33,10 +34,10 @@ router.get('/', async (req, res, next) => {
     const servers = await Promise.all(
       vms.map(async (vm) => {
         try {
-          const data = await openstack.getServer(vm.instanceId);
-          return { ...data.server, dbId: vm.id, flavorId: vm.flavorId };
+          const data = await openstack.getServer(vm.instanceId, projectId);
+          return { ...data.server, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
         } catch {
-          return { id: vm.instanceId, name: vm.instanceId, status: vm.status || 'UNKNOWN', dbId: vm.id, flavorId: vm.flavorId };
+          return { id: vm.instanceId, name: vm.instanceId, status: vm.status || 'UNKNOWN', dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
         }
       })
     );
@@ -57,6 +58,23 @@ router.put('/:id/scaling-policy', scalingController.putScalingPolicy);
 router.get('/:id/metrics', scalingController.getMetrics);
 router.get('/:id/scaling-history', scalingController.getScalingHistory);
 
+router.get('/:id/console', async (req, res, next) => {
+  try {
+    const vm = await VM.findOne({ where: { instanceId: req.params.id, userId: req.userId } });
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
+    }
+    const projectId = req.user?.openstackProjectId || null;
+    const url = await openstack.getConsoleUrl(req.params.id, projectId);
+    if (!url) {
+      return res.status(503).json({ error: { message: 'Console non disponible pour cette VM', status: 503 } });
+    }
+    res.json({ success: true, url });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get specific VM (must belong to current user), with flavor details for detail page
 router.get('/:id', async (req, res, next) => {
   try {
@@ -64,12 +82,13 @@ router.get('/:id', async (req, res, next) => {
     if (!vm) {
       return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
     }
-    const data = await openstack.getServer(req.params.id);
-    const server = { ...data.server, dbId: vm.id, flavorId: vm.flavorId };
+    const projectId = req.user?.openstackProjectId || null;
+    const data = await openstack.getServer(req.params.id, projectId);
+    const server = { ...data.server, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
     const flavorId = server.flavor?.id || server.flavorId || vm.flavorId;
     if (flavorId) {
       try {
-        const flavorData = await openstack.getFlavor(flavorId);
+        const flavorData = await openstack.getFlavor(flavorId, projectId);
         server.flavor = flavorData.flavor || flavorData;
       } catch {
         // keep existing server.flavor or id only
@@ -99,7 +118,9 @@ router.post('/', async (req, res, next) => {
       vcpus,
       ramGb,
       diskGb,
-      scaling
+      scaling,
+      userData,
+      expiresAt
     } = req.body;
 
     if (!name) {
@@ -156,8 +177,12 @@ router.post('/', async (req, res, next) => {
       networks: networkId ? [{ uuid: networkId }] : 'auto'
     };
     if (keyName) serverData.key_name = keyName;
+    if (userData && typeof userData === 'string') {
+      serverData.user_data = Buffer.from(userData, 'utf8').toString('base64');
+    }
 
-    const data = await openstack.createServer(serverData);
+    const projectId = req.user?.openstackProjectId || null;
+    const data = await openstack.createServer(serverData, projectId);
     const server = data.server;
     const instanceId = typeof server.id === 'string' ? server.id : server.id?.id;
 
@@ -165,7 +190,8 @@ router.post('/', async (req, res, next) => {
       userId: req.userId,
       instanceId,
       flavorId: flavorIdToUse,
-      status: server.status || 'BUILD'
+      status: server.status || 'BUILD',
+      expiresAt: expiresAt ? new Date(expiresAt) : null
     });
 
     if (scaling && (scaling.thresholdHigh != null || scaling.thresholdLow != null)) {
@@ -196,7 +222,8 @@ router.delete('/:id', async (req, res, next) => {
     if (!vm) {
       return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
     }
-    await openstack.deleteServer(req.params.id);
+    const projectId = req.user?.openstackProjectId || null;
+    await openstack.deleteServer(req.params.id, projectId);
     await vm.destroy();
     res.json({
       success: true,
@@ -250,7 +277,8 @@ router.post('/:id/action', async (req, res, next) => {
         });
     }
 
-    await openstack.serverAction(serverId, actionBody);
+    const projectId = req.user?.openstackProjectId || null;
+    await openstack.serverAction(serverId, actionBody, projectId);
 
     if (action === 'start') {
       const alreadyRunning = await VmRuntime.findOne({

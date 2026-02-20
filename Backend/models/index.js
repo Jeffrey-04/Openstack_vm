@@ -1,4 +1,6 @@
+const path = require('path');
 const { sequelize, testConnection } = require('../config/database');
+const { Umzug, SequelizeStorage } = require('umzug');
 const User = require('./User');
 const VM = require('./VM');
 const Invoice = require('./Invoice');
@@ -60,10 +62,24 @@ const syncDatabase = async (options = {}) => {
   return sequelize;
 };
 
+const runMigrations = async () => {
+  const umzug = new Umzug({
+    migrations: {
+      glob: path.join(__dirname, '..', 'migrations', '*.js')
+    },
+    context: sequelize.getQueryInterface(),
+    storage: new SequelizeStorage({ sequelize }),
+    logger: console
+  });
+  await umzug.up();
+  return sequelize;
+};
+
 module.exports = {
   sequelize,
   models,
   syncDatabase,
+  runMigrations,
   testConnection,
   User,
   VM,

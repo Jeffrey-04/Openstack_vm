@@ -1,5 +1,6 @@
 const { ScalingPolicy, ScalingEvent, ResourceUsage, VM } = require('../models');
 const { Op } = require('sequelize');
+const { getInstanceMetrics } = require('../services/ceilometer');
 
 async function ensureVmOwnership(req, res) {
   const vm = await VM.findOne({
@@ -92,15 +93,26 @@ async function getMetrics(req, res, next) {
     const vm = await ensureVmOwnership(req, res);
     if (vm === null) return;
     const instanceId = req.params.id;
+    const projectId = req.user?.openstackProjectId || null;
+    const byType = {};
+
+    const ceilometerMetrics = await getInstanceMetrics(instanceId, projectId);
+    if (ceilometerMetrics) {
+      if (ceilometerMetrics.cpu_util?.length) byType.cpu_util = ceilometerMetrics.cpu_util;
+      if (ceilometerMetrics.memory_usage?.length) byType.memory_usage = ceilometerMetrics.memory_usage;
+    }
+
     const usages = await ResourceUsage.findAll({
       where: { vmId: vm.id },
       order: [['timestamp', 'DESC']],
       limit: 100
     });
-    const byType = {};
     for (const u of usages) {
       if (!byType[u.metricType]) byType[u.metricType] = [];
       byType[u.metricType].push({ value: Number(u.value), timestamp: u.timestamp });
+    }
+    for (const key of Object.keys(byType)) {
+      byType[key].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     }
     res.json({ success: true, metrics: byType, instanceId });
   } catch (err) {

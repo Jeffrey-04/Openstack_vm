@@ -17,6 +17,17 @@ function MyVMs() {
     loadVMs();
   }, []);
 
+  const hasBuilding = vms.some((vm) => vm.status === 'BUILD');
+  useEffect(() => {
+    if (!hasBuilding) return;
+    const interval = setInterval(() => {
+      apiService.getVMs().then((result) => {
+        setVMs(result.servers || []);
+      }).catch(() => {});
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [hasBuilding]);
+
   const loadVMs = async () => {
     try {
       setLoading(true);
@@ -124,7 +135,7 @@ function MyVMs() {
     <div>
       <div className="card" style={{ marginBottom: '2rem' }}>
         <div className="card-header">
-          <h1 className="card-title">💻 Mes Machines Virtuelles</h1>
+          <h1 className="card-title">Mes Machines Virtuelles</h1>
           <p className="card-subtitle">Gérez toutes vos VMs en un seul endroit</p>
         </div>
         
@@ -133,7 +144,7 @@ function MyVMs() {
             <strong>{vms.length}</strong> VM{vms.length > 1 ? 's' : ''} totale{vms.length > 1 ? 's' : ''}
           </div>
           <button onClick={loadVMs} className="btn btn-sm btn-secondary">
-            🔄 Actualiser
+            Actualiser
           </button>
         </div>
       </div>
@@ -166,7 +177,7 @@ function MyVMs() {
                     {getStatusText(vm.status)}
                   </span>
                 </div>
-                <div style={{ fontSize: '2rem' }}>💻</div>
+                <div style={{ fontSize: '1.5rem', color: '#64748b' }} />
               </div>
 
               <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f9fafb', borderRadius: '8px' }}>
@@ -196,7 +207,7 @@ function MyVMs() {
                     disabled={actionLoading[vm.id]}
                     className="btn btn-sm btn-success"
                   >
-                    {actionLoading[vm.id] === 'start' ? '⏳' : '▶️'} Démarrer
+                    {actionLoading[vm.id] === 'start' ? 'Chargement...' : ''} Démarrer
                   </button>
                 ) : vm.status === 'ACTIVE' ? (
                   <button
@@ -204,7 +215,7 @@ function MyVMs() {
                     disabled={actionLoading[vm.id]}
                     className="btn btn-sm btn-warning"
                   >
-                    {actionLoading[vm.id] === 'stop' ? '⏳' : '⏹️'} Arrêter
+                    {actionLoading[vm.id] === 'stop' ? 'Chargement...' : ''} Arrêter
                   </button>
                 ) : null}
 
@@ -214,7 +225,7 @@ function MyVMs() {
                     disabled={actionLoading[vm.id]}
                     className="btn btn-sm btn-secondary"
                   >
-                    {actionLoading[vm.id] === 'reboot' ? '⏳' : '🔄'} Redémarrer
+                    {actionLoading[vm.id] === 'reboot' ? 'Chargement...' : ''} Redémarrer
                   </button>
                 )}
 
@@ -223,7 +234,7 @@ function MyVMs() {
                   disabled={actionLoading[vm.id]}
                   className="btn btn-sm btn-danger"
                 >
-                  {actionLoading[vm.id] === 'delete' ? '⏳' : '🗑️'} Supprimer
+                  {actionLoading[vm.id] === 'delete' ? 'Chargement...' : ''} Supprimer
                 </button>
               </div>
             </div>
@@ -232,7 +243,7 @@ function MyVMs() {
       )}
 
       <div className="card" style={{ marginTop: '2rem', background: '#dbeafe' }}>
-        <h3 style={{ marginBottom: '0.5rem' }}>ℹ️ Astuce</h3>
+        <h3 style={{ marginBottom: '0.5rem' }}>Astuce</h3>
         <p style={{ color: '#1e40af', marginBottom: '0' }}>
           Vous pouvez également gérer vos VMs depuis le dashboard OpenStack pour des options avancées.
         </p>
