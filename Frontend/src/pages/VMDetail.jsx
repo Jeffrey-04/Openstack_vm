@@ -394,13 +394,23 @@ function VMDetail() {
                 onClick={async () => {
                     setConsoleLoading(true);
                     try {
-                    const res = await apiService.getVmConsole(vm.id || id);
+                    const tryId = vm.id || id;
+                    let res = null;
+                    try {
+                      res = await apiService.getVmConsole(tryId);
+                    } catch (e) {
+                      if (e.response?.status === 404 && (vm.dbId || vm.id !== tryId)) {
+                        res = await apiService.getVmConsole(vm.dbId || tryId);
+                      } else {
+                        throw e;
+                      }
+                    }
                     if (res?.url) window.open(res.url, '_blank', 'noopener,noreferrer');
                     else toast.error('Console non disponible');
                   } catch (e) {
                     const status = e.response?.status;
                     const msg = e.response?.data?.error?.message;
-                    if (status === 404) toast.error('VM introuvable. Rechargez la page.');
+                    if (status === 404) toast.error(msg || 'VM introuvable. Rechargez la page détail puis réessayez.');
                     else if (status === 503) toast.error(msg || 'Console non disponible pour cette VM.');
                     else toast.error(msg || 'Impossible d\'ouvrir la console.');
                   } finally {

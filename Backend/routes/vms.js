@@ -32,6 +32,11 @@ async function findVmByParam(paramId, userId) {
   return byPk || null;
 }
 
+function normalizeVmParam(paramId) {
+  if (!paramId || typeof paramId !== 'string') return paramId;
+  return paramId.trim();
+}
+
 // List VMs for the current user (from DB, optionally sync status from OpenStack)
 router.get('/', async (req, res, next) => {
   try {
@@ -69,9 +74,17 @@ router.get('/:id/scaling-history', scalingController.getScalingHistory);
 
 router.get('/:id/console', async (req, res, next) => {
   try {
-    const vm = await findVmByParam(req.params.id, req.userId);
+    const paramId = normalizeVmParam(req.params.id);
+    const vm = await findVmByParam(paramId, req.userId);
     if (!vm) {
-      return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
+      logger.warn('Console: VM not found', { paramId: paramId?.substring(0, 8) + '…', userId: req.userId?.substring(0, 8) + '…' });
+      return res.status(404).json({
+        error: {
+          message: 'VM introuvable ou accès non autorisé. Rechargez la page détail.',
+          status: 404,
+          code: 'VM_NOT_FOUND'
+        }
+      });
     }
     const projectId = req.user?.openstackProjectId || null;
     const url = await openstack.getConsoleUrl(vm.instanceId, projectId);
