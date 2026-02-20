@@ -250,6 +250,16 @@
   color: var(--text, #1e293b);
 }
 
+.vm-detail-metrics-note {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0 0 1rem 0;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
 .vm-detail-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

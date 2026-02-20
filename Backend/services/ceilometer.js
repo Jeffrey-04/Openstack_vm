@@ -1,13 +1,26 @@
 const axios = require('axios');
 const openstack = require('../config/openstack');
 
+function toArray(data) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.samples)) return data.samples;
+  return [];
+}
+
+function samplesToSeries(samples) {
+  return samples.map((s) => ({
+    value: Number(s.counter_volume ?? s.volume ?? 0),
+    timestamp: s.timestamp || s.recorded_at
+  })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+}
+
 /**
  * Fetch Ceilometer samples for a Nova instance (resource_id = serverId).
  * Requires CEILOMETER_URL to be set (e.g. http://host:8777).
- * cpu_util is typically 0-100 (%). memory.usage may be in MB depending on the meter; frontend may need to normalize for %.
+ * Returns cpu_util (%), memory_usage, disk_usage (GB or %), network_incoming_bytes, network_outgoing_bytes (cumulative bytes).
  * @param {string} resourceId - Nova server UUID (instance id)
  * @param {string} [projectId] - Optional Keystone project ID for token scope
- * @returns {Promise<{ cpu_util: Array<{value, timestamp}>, memory_usage?: Array<{value, timestamp}> }>}
+ * @returns {Promise<Object>}
  */
 async function getInstanceMetrics(resourceId, projectId = null) {
   const baseUrl = process.env.CEILOMETER_URL;
@@ -16,30 +29,34 @@ async function getInstanceMetrics(resourceId, projectId = null) {
     const token = await openstack.getAuthToken(projectId);
     const limit = 60;
     const q = `q.field=resource_id&q.op=eq&q.value=${resourceId}`;
-    const [cpuRes, memRes] = await Promise.all([
-      axios.get(`${baseUrl}/v2/meters/cpu_util?${q}&limit=${limit}`, {
-        headers: { 'X-Auth-Token': token }
-      }).catch(() => ({ data: [] })),
-      axios.get(`${baseUrl}/v2/meters/memory.usage?${q}&limit=${limit}`, {
-        headers: { 'X-Auth-Token': token }
-      }).catch(() => ({ data: [] }))
-    ]);
-    const toArray = (data) => {
-      if (Array.isArray(data)) return data;
-      if (data && Array.isArray(data.samples)) return data.samples;
-      return [];
+    const meters = [
+      'cpu_util',
+      'memory.usage',
+      'disk.usage',
+      'network.incoming.bytes',
+      'network.outgoing.bytes'
+    ];
+    const results = await Promise.all(
+      meters.map((meter) =>
+        axios.get(`${baseUrl}/v2/meters/${encodeURIComponent(meter)}?${q}&limit=${limit}`, {
+          headers: { 'X-Auth-Token': token }
+        }).catch(() => ({ data: [] }))
+      )
+    );
+    const cpuSamples = toArray(results[0].data);
+    const memSamples = toArray(results[1].data);
+    const diskSamples = toArray(results[2].data);
+    const netInSamples = toArray(results[3].data);
+    const netOutSamples = toArray(results[4].data);
+
+    const out = {
+      cpu_util: samplesToSeries(cpuSamples),
+      memory_usage: samplesToSeries(memSamples)
     };
-    const cpuSamples = toArray(cpuRes.data);
-    const memSamples = toArray(memRes.data);
-    const cpu_util = cpuSamples.map((s) => ({
-      value: Number(s.counter_volume ?? s.volume ?? 0),
-      timestamp: s.timestamp || s.recorded_at
-    })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    const memory_usage = memSamples.map((s) => ({
-      value: Number(s.counter_volume ?? s.volume ?? 0),
-      timestamp: s.timestamp || s.recorded_at
-    })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    return { cpu_util, memory_usage };
+    if (diskSamples.length) out.disk_usage = samplesToSeries(diskSamples);
+    if (netInSamples.length) out.network_incoming_bytes = samplesToSeries(netInSamples);
+    if (netOutSamples.length) out.network_outgoing_bytes = samplesToSeries(netOutSamples);
+    return out;
   } catch (err) {
     return null;
   }

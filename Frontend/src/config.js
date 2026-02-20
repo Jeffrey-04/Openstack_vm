@@ -21,6 +21,7 @@ export const API = {
     VM_METRICS: (id) => `/api/vms/${id}/metrics`,
     VM_SCALING_HISTORY: (id) => `/api/vms/${id}/scaling-history`,
     VM_CONSOLE: (id) => `/api/vms/${id}/console`,
+    VM_CONSOLE_BY_DB_ID: (dbId) => `/api/vms/console/by-db-id/${dbId}`,
     VM_TEMPLATES: '/api/vm-templates',
     FLAVORS: '/api/flavors',
     FLAVOR_BY_ID: (id) => `/api/flavors/${id}`,

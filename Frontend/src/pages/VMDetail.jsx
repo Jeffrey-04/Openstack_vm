@@ -168,6 +168,25 @@ function VMDetail() {
 
   const cpuMetric = (metrics?.cpu_util || [])[0]?.value;
   const memMetric = (metrics?.memory_usage || metrics?.mem_util || [])[0]?.value;
+  const diskUsageRaw = (metrics?.disk_usage || [])[0]?.value;
+  const diskTotalGb = flavor.disk != null ? Number(flavor.disk) : null;
+  const diskUsageGb = diskUsageRaw != null && diskUsageRaw > 100 ? diskUsageRaw : null;
+  const diskUsagePct = diskUsageRaw != null && diskUsageRaw <= 100 ? diskUsageRaw : (diskUsageGb != null && diskTotalGb ? Math.round((diskUsageGb / diskTotalGb) * 100) : null);
+  const formatBytes = (bytes) => {
+    if (bytes == null || Number.isNaN(bytes)) return null;
+    const n = Number(bytes);
+    if (n >= 1e9) return `${(n / 1e9).toFixed(2)} GB`;
+    if (n >= 1e6) return `${(n / 1e6).toFixed(2)} MB`;
+    if (n >= 1e3) return `${(n / 1e3).toFixed(2)} KB`;
+    return `${n} B`;
+  };
+  const trafficInBytes = (metrics?.network_incoming_bytes || [])[0]?.value;
+  const trafficOutBytes = (metrics?.network_outgoing_bytes || [])[0]?.value;
+  const trafficIn = formatBytes(trafficInBytes);
+  const trafficOut = formatBytes(trafficOutBytes);
+  const bandwidthBytes = (trafficInBytes != null && trafficOutBytes != null) ? trafficInBytes + trafficOutBytes : null;
+  const bandwidth = formatBytes(bandwidthBytes);
+  const diskBarPct = diskUsagePct != null ? Math.min(100, diskUsagePct) : (diskUsageGb != null && diskTotalGb ? Math.min(100, (diskUsageGb / diskTotalGb) * 100) : 0);
 
   return (
     <div className="vm-detail">
@@ -223,6 +242,11 @@ function VMDetail() {
 
       <section className="vm-detail-section">
         <h2 className="vm-detail-section-title">Utilisation des ressources</h2>
+        {cpuMetric == null && memMetric == null && diskUsageRaw == null && trafficInBytes == null && trafficOutBytes == null && (
+          <p className="vm-detail-metrics-note">
+            Les statistiques apparaîtront ici lorsque les métriques sont disponibles (Ceilometer configuré côté serveur).
+          </p>
+        )}
         <div className="vm-detail-metrics">
           <div className="vm-detail-card vm-detail-metric-card">
             <div className="vm-detail-metric-label">Utilisation du CPU</div>
@@ -240,20 +264,24 @@ function VMDetail() {
           </div>
           <div className="vm-detail-card vm-detail-metric-card">
             <div className="vm-detail-metric-label">Utilisation du disque</div>
-            <div className="vm-detail-metric-value">— / {flavor.disk || '—'} GB</div>
-            <div className="vm-detail-metric-bar"><div className="vm-detail-metric-fill" style={{ width: '0%' }} /></div>
+            <div className="vm-detail-metric-value">
+              {diskUsagePct != null ? `${Math.round(diskUsagePct)}%` : diskUsageGb != null ? `${diskUsageGb.toFixed(1)} GB` : '—'} / {flavor.disk ?? '—'} GB
+            </div>
+            <div className="vm-detail-metric-bar">
+              <div className="vm-detail-metric-fill" style={{ width: `${diskBarPct}%` }} />
+            </div>
           </div>
           <div className="vm-detail-card vm-detail-metric-card">
             <div className="vm-detail-metric-label">Trafic entrant</div>
-            <div className="vm-detail-metric-value">—</div>
+            <div className="vm-detail-metric-value">{trafficIn ?? '—'}</div>
           </div>
           <div className="vm-detail-card vm-detail-metric-card">
             <div className="vm-detail-metric-label">Trafic sortant</div>
-            <div className="vm-detail-metric-value">—</div>
+            <div className="vm-detail-metric-value">{trafficOut ?? '—'}</div>
           </div>
           <div className="vm-detail-card vm-detail-metric-card">
             <div className="vm-detail-metric-label">Bande passante</div>
-            <div className="vm-detail-metric-value">—</div>
+            <div className="vm-detail-metric-value">{bandwidth ?? '—'}</div>
           </div>
         </div>
         {hasChartData && (
@@ -394,17 +422,9 @@ function VMDetail() {
                 onClick={async () => {
                     setConsoleLoading(true);
                     try {
-                    const tryId = vm.id || id;
-                    let res = null;
-                    try {
-                      res = await apiService.getVmConsole(tryId);
-                    } catch (e) {
-                      if (e.response?.status === 404 && (vm.dbId || vm.id !== tryId)) {
-                        res = await apiService.getVmConsole(vm.dbId || tryId);
-                      } else {
-                        throw e;
-                      }
-                    }
+                    const res = vm.dbId
+                      ? await apiService.getVmConsoleByDbId(vm.dbId)
+                      : await apiService.getVmConsole(vm.id || id);
                     if (res?.url) window.open(res.url, '_blank', 'noopener,noreferrer');
                     else toast.error('Console non disponible');
                   } catch (e) {

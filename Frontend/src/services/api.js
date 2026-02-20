@@ -151,6 +151,11 @@ export const apiService = {
     return response.data;
   },
 
+  async getVmConsoleByDbId(dbId) {
+    const response = await axiosInstance.get(API.ENDPOINTS.VM_CONSOLE_BY_DB_ID(dbId));
+    return response.data;
+  },
+
   async deleteVM(id) {
     const response = await axiosInstance.delete(API.ENDPOINTS.VM_BY_ID(id));
     return response.data;

@@ -105,6 +105,9 @@ async function getMetrics(req, res, next) {
     if (ceilometerMetrics) {
       if (ceilometerMetrics.cpu_util?.length) byType.cpu_util = ceilometerMetrics.cpu_util;
       if (ceilometerMetrics.memory_usage?.length) byType.memory_usage = ceilometerMetrics.memory_usage;
+      if (ceilometerMetrics.disk_usage?.length) byType.disk_usage = ceilometerMetrics.disk_usage;
+      if (ceilometerMetrics.network_incoming_bytes?.length) byType.network_incoming_bytes = ceilometerMetrics.network_incoming_bytes;
+      if (ceilometerMetrics.network_outgoing_bytes?.length) byType.network_outgoing_bytes = ceilometerMetrics.network_outgoing_bytes;
     }
 
     const usages = await ResourceUsage.findAll({
@@ -119,6 +122,12 @@ async function getMetrics(req, res, next) {
     for (const key of Object.keys(byType)) {
       byType[key].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     }
+    if (!byType.cpu_util) byType.cpu_util = [];
+    if (!byType.memory_usage) byType.memory_usage = [];
+    if (!byType.mem_util) byType.mem_util = [];
+    if (!byType.disk_usage) byType.disk_usage = [];
+    if (!byType.network_incoming_bytes) byType.network_incoming_bytes = [];
+    if (!byType.network_outgoing_bytes) byType.network_outgoing_bytes = [];
     res.json({ success: true, metrics: byType, instanceId });
   } catch (err) {
     next(err);
