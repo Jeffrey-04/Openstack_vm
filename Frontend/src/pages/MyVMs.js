@@ -64,7 +64,13 @@ function MyVMs() {
 
     } catch (err) {
       console.error('Error performing action:', err);
-      toast.error(err.response?.data?.error?.message || err.message || 'Erreur lors de l\'action');
+      const status = err.response?.status;
+      const msg = err.response?.data?.error?.message;
+      if (status === 409) {
+        toast.error(msg || 'Action impossible dans l\'état actuel de la VM (ex. démarrer une VM déjà en cours).');
+      } else {
+        toast.error(msg || err.message || 'Erreur lors de l\'action');
+      }
       setActionLoading((prev) => ({ ...prev, [vmId]: null }));
     }
   };

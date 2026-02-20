@@ -331,7 +331,20 @@ router.post('/:id/action', async (req, res, next) => {
     }
 
     const projectId = req.user?.openstackProjectId || null;
-    await openstack.serverAction(serverId, actionBody, projectId);
+    try {
+      await openstack.serverAction(serverId, actionBody, projectId);
+    } catch (err) {
+      const status = err.response?.status;
+      const body = err.response?.data;
+      if (status === 409) {
+        const msg = body?.conflict?.message || body?.message || body?.error?.message
+          || 'Cette action n\'est pas possible dans l\'état actuel de la VM (ex. démarrer une VM déjà en cours, ou arrêter une VM déjà arrêtée).';
+        return res.status(409).json({
+          error: { message: msg, status: 409, code: 'CONFLICT' }
+        });
+      }
+      throw err;
+    }
 
     if (action === 'start') {
       const alreadyRunning = await VmRuntime.findOne({
