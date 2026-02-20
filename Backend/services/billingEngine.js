@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { ResourceUsage, PricingRule, VM, VmRuntime, Invoice, InvoiceItem, UsageSlice, User, PaymentMethod } = require('../models');
 const openstack = require('../config/openstack');
+const logger = require('../utils/logger');
 
 const DEFAULT_CURRENCY = 'XAF';
 const SLICE_MINUTES = 30;
@@ -182,6 +183,11 @@ async function getRuntimeOverlapsForSlice(sliceStart, sliceEnd) {
 async function runBillingJobForSlice(sliceEnd) {
   const sliceStart = new Date(sliceEnd.getTime() - SLICE_MINUTES * 60 * 1000);
   const overlaps = await getRuntimeOverlapsForSlice(sliceStart, sliceEnd);
+  logger.info('Billing job slice', {
+    sliceStart: sliceStart.toISOString(),
+    sliceEnd: sliceEnd.toISOString(),
+    overlapsCount: overlaps.length
+  });
   if (overlaps.length === 0) return { invoicesCreated: 0 };
 
   const byUser = {};
@@ -248,6 +254,9 @@ async function runBillingJobForSlice(sliceEnd) {
       });
     }
     invoicesCreated += 1;
+  }
+  if (invoicesCreated > 0) {
+    logger.info('Billing job: invoices created', { count: invoicesCreated, sliceEnd: sliceEnd.toISOString() });
   }
   return { invoicesCreated };
 }

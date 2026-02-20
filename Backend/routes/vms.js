@@ -232,12 +232,20 @@ router.post('/', async (req, res, next) => {
     const server = data.server;
     const instanceId = typeof server.id === 'string' ? server.id : server.id?.id;
 
-    await VM.create({
+    const vmRecord = await VM.create({
       userId: req.userId,
       instanceId,
       flavorId: flavorIdToUse,
       status: server.status || 'BUILD',
       expiresAt: expiresAt ? new Date(expiresAt) : null
+    });
+
+    // Track runtime for billing: VM is considered running from creation (OpenStack will start it)
+    await VmRuntime.create({
+      userId: req.userId,
+      instanceId,
+      startedAt: new Date(),
+      stoppedAt: null
     });
 
     if (scaling && (scaling.thresholdHigh != null || scaling.thresholdLow != null)) {

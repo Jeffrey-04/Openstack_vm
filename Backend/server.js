@@ -128,14 +128,17 @@ const startServer = async () => {
   if (process.env.NODE_ENV === 'test') return;
 
   // 30-min billing job: run for last slice, then every 30 min
-  runThirtyMinuteBillingJob().then((r) => {
+  const runBilling = () => runThirtyMinuteBillingJob().then((r) => {
     if (r.invoicesCreated > 0) {
-      console.log(`Billing job: ${r.invoicesCreated} invoice(s) created for last slice.`);
+      console.log(`Billing job: ${r.invoicesCreated} facture(s) créée(s).`);
     }
-  }).catch((err) => console.error('Billing job error:', err.message));
-  setInterval(() => {
-    runThirtyMinuteBillingJob().catch((err) => console.error('Billing job error:', err.message));
-  }, BILLING_JOB_INTERVAL_MS);
+    return r;
+  }).catch((err) => {
+    console.error('Billing job error:', err.message);
+    throw err;
+  });
+  runBilling();
+  setInterval(runBilling, BILLING_JOB_INTERVAL_MS);
 
   runDailyPaymentJob().catch((err) => console.error('Daily payment job error:', err.message));
   setInterval(() => {
