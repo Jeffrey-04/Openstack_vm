@@ -115,8 +115,9 @@ function VMDetail() {
   };
 
   const chartData = useMemo(() => {
-    const cpu = (metrics.cpu_util || []).slice(0, 30).reverse();
-    const mem = (metrics.memory_usage || metrics.mem_util || []).slice(0, 30).reverse();
+    const m = metrics || {};
+    const cpu = (m.cpu_util || []).slice(0, 30).reverse();
+    const mem = (m.memory_usage || m.mem_util || []).slice(0, 30).reverse();
     const byTime = {};
     cpu.forEach((p) => {
       const t = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -129,7 +130,7 @@ function VMDetail() {
       byTime[t].memory_usage = p.value;
     });
     return Object.values(byTime).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [metrics.cpu_util, metrics.memory_usage, metrics.mem_util]);
+  }, [metrics?.cpu_util, metrics?.memory_usage, metrics?.mem_util]);
   const hasChartData = chartData.length > 1;
 
   if (loading && !vm) {
@@ -165,8 +166,8 @@ function VMDetail() {
   const osName = vm.image?.name || 'Ubuntu';
   const osShort = osName.split(' ')[0] || 'Ubuntu';
 
-  const cpuMetric = (metrics.cpu_util || [])[0]?.value;
-  const memMetric = (metrics.memory_usage || metrics.mem_util || [])[0]?.value;
+  const cpuMetric = (metrics?.cpu_util || [])[0]?.value;
+  const memMetric = (metrics?.memory_usage || metrics?.mem_util || [])[0]?.value;
 
   return (
     <div className="vm-detail">
