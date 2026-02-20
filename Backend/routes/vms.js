@@ -23,6 +23,15 @@ async function findFlavorBySpecs(vcpus, ramGb, diskGb) {
 // All VM routes require authentication
 router.use(authenticate);
 
+// Find VM by route param: accept OpenStack instanceId or our DB id (UUID)
+async function findVmByParam(paramId, userId) {
+  if (!paramId || !userId) return null;
+  const byInstance = await VM.findOne({ where: { instanceId: paramId, userId } });
+  if (byInstance) return byInstance;
+  const byPk = await VM.findOne({ where: { id: paramId, userId } });
+  return byPk || null;
+}
+
 // List VMs for the current user (from DB, optionally sync status from OpenStack)
 router.get('/', async (req, res, next) => {
   try {
@@ -60,12 +69,12 @@ router.get('/:id/scaling-history', scalingController.getScalingHistory);
 
 router.get('/:id/console', async (req, res, next) => {
   try {
-    const vm = await VM.findOne({ where: { instanceId: req.params.id, userId: req.userId } });
+    const vm = await findVmByParam(req.params.id, req.userId);
     if (!vm) {
       return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
     }
     const projectId = req.user?.openstackProjectId || null;
-    const url = await openstack.getConsoleUrl(req.params.id, projectId);
+    const url = await openstack.getConsoleUrl(vm.instanceId, projectId);
     if (!url) {
       return res.status(503).json({ error: { message: 'Console non disponible pour cette VM', status: 503 } });
     }
@@ -78,12 +87,12 @@ router.get('/:id/console', async (req, res, next) => {
 // Get specific VM (must belong to current user), with flavor details for detail page
 router.get('/:id', async (req, res, next) => {
   try {
-    const vm = await VM.findOne({ where: { instanceId: req.params.id, userId: req.userId } });
+    const vm = await findVmByParam(req.params.id, req.userId);
     if (!vm) {
       return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
     }
     const projectId = req.user?.openstackProjectId || null;
-    const data = await openstack.getServer(req.params.id, projectId);
+    const data = await openstack.getServer(vm.instanceId, projectId);
     const server = { ...data.server, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
     const flavorId = server.flavor?.id || server.flavorId || vm.flavorId;
     if (flavorId) {
@@ -218,12 +227,12 @@ router.post('/', async (req, res, next) => {
 // Delete VM (must belong to current user)
 router.delete('/:id', async (req, res, next) => {
   try {
-    const vm = await VM.findOne({ where: { instanceId: req.params.id, userId: req.userId } });
+    const vm = await findVmByParam(req.params.id, req.userId);
     if (!vm) {
       return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
     }
     const projectId = req.user?.openstackProjectId || null;
-    await openstack.deleteServer(req.params.id, projectId);
+    await openstack.deleteServer(vm.instanceId, projectId);
     await vm.destroy();
     res.json({
       success: true,
@@ -238,12 +247,11 @@ router.delete('/:id', async (req, res, next) => {
 router.post('/:id/action', async (req, res, next) => {
   try {
     const { action } = req.body;
-    const serverId = req.params.id;
-
-    const vm = await VM.findOne({ where: { instanceId: serverId, userId: req.userId } });
+    const vm = await findVmByParam(req.params.id, req.userId);
     if (!vm) {
       return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
     }
+    const serverId = vm.instanceId;
 
     let actionBody;
     switch (action) {

@@ -290,6 +290,7 @@
 
   .dashboard-sidebar {
     transform: translateX(-100%);
+    width: 260px;
   }
 
   .dashboard-sidebar.mobile-open {
@@ -306,5 +307,41 @@
 
   .topbar-menu-toggle {
     display: block;
+  }
+
+  .topbar-title {
+    font-size: 1.1rem;
+  }
+
+  .topbar-subtitle {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-topbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .topbar-breadcrumb {
+    order: 2;
+    width: 100%;
+    margin-top: 0.25rem;
+    padding-top: 0.25rem;
+    border-top: 1px solid #eee;
+  }
+
+  .topbar-actions {
+    margin-left: auto;
+  }
+
+  .topbar-user-name {
+    display: none;
+  }
+
+  .dashboard-content {
+    padding: 0.75rem;
   }
 }

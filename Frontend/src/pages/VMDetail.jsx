@@ -392,13 +392,17 @@ function VMDetail() {
                 className="vm-detail-btn vm-detail-btn-restart"
                 disabled={consoleLoading}
                 onClick={async () => {
-                  setConsoleLoading(true);
-                  try {
-                    const res = await apiService.getVmConsole(id);
+                    setConsoleLoading(true);
+                    try {
+                    const res = await apiService.getVmConsole(vm.id || id);
                     if (res?.url) window.open(res.url, '_blank', 'noopener,noreferrer');
                     else toast.error('Console non disponible');
                   } catch (e) {
-                    toast.error(e.response?.data?.error?.message || 'Impossible d\'ouvrir la console');
+                    const status = e.response?.status;
+                    const msg = e.response?.data?.error?.message;
+                    if (status === 404) toast.error('VM introuvable. Rechargez la page.');
+                    else if (status === 503) toast.error(msg || 'Console non disponible pour cette VM.');
+                    else toast.error(msg || 'Impossible d\'ouvrir la console.');
                   } finally {
                     setConsoleLoading(false);
                   }

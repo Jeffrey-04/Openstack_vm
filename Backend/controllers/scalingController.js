@@ -3,20 +3,25 @@ const { Op } = require('sequelize');
 const { getInstanceMetrics } = require('../services/ceilometer');
 
 async function ensureVmOwnership(req, res) {
-  const vm = await VM.findOne({
-    where: { instanceId: req.params.id, userId: req.userId }
-  });
+  const paramId = req.params.id;
+  if (!paramId || !req.userId) {
+    res.status(404).json({ error: { message: 'VM not found', status: 404 } });
+    return null;
+  }
+  let vm = await VM.findOne({ where: { instanceId: paramId, userId: req.userId } });
+  if (!vm) vm = await VM.findOne({ where: { id: paramId, userId: req.userId } });
   if (!vm) {
     res.status(404).json({ error: { message: 'VM not found', status: 404 } });
     return null;
   }
+  req.vmInstanceId = vm.instanceId;
   return vm;
 }
 
 async function getScalingPolicy(req, res, next) {
   try {
     if (await ensureVmOwnership(req, res) === null) return;
-    const instanceId = req.params.id;
+    const instanceId = req.vmInstanceId;
     const policy = await ScalingPolicy.findOne({
       where: { instanceId, isActive: true }
     });
@@ -47,7 +52,7 @@ async function getScalingPolicy(req, res, next) {
 async function putScalingPolicy(req, res, next) {
   try {
     if (await ensureVmOwnership(req, res) === null) return;
-    const instanceId = req.params.id;
+    const instanceId = req.vmInstanceId;
     const { metricType, thresholdHigh, thresholdLow, isActive, cooldownMinutes, baseFlavorId } = req.body;
     let policy = await ScalingPolicy.findOne({ where: { instanceId } });
     if (policy) {
@@ -92,7 +97,7 @@ async function getMetrics(req, res, next) {
   try {
     const vm = await ensureVmOwnership(req, res);
     if (vm === null) return;
-    const instanceId = req.params.id;
+    const instanceId = req.vmInstanceId;
     const projectId = req.user?.openstackProjectId || null;
     const byType = {};
 
@@ -123,7 +128,7 @@ async function getMetrics(req, res, next) {
 async function getScalingHistory(req, res, next) {
   try {
     if (await ensureVmOwnership(req, res) === null) return;
-    const instanceId = req.params.id;
+    const instanceId = req.vmInstanceId;
     const events = await ScalingEvent.findAll({
       where: { instanceId },
       order: [['timestamp', 'DESC']],
