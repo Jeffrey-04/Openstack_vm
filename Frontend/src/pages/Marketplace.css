@@ -1,22 +1,22 @@
-/* Design image 1: fond dégradé violet → bleu, 3 cartes tarifs, badge "Le plus utilisé", prix teal, bouton violet */
+/* Fond neutre, cartes avec ombres marquées (pas de fond violet derrière les cartes) */
 .marketplace-wrap {
   min-height: 100%;
-  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 35%, #6366f1 70%, #3b82f6 100%);
+  background: #f1f5f9;
   padding: 2rem 1.5rem 3rem;
 }
 
 .marketplace-loading,
 .marketplace-error {
   text-align: center;
-  color: #fff;
+  color: #475569;
   padding: 3rem 1rem;
 }
 
 .marketplace-spinner {
   width: 48px;
   height: 48px;
-  border: 3px solid rgba(255,255,255,0.3);
-  border-top-color: #fff;
+  border: 3px solid rgba(71, 85, 105, 0.2);
+  border-top-color: #6366f1;
   border-radius: 50%;
   animation: marketplace-spin 0.8s linear infinite;
   margin: 0 auto 1rem;
@@ -27,10 +27,11 @@
 }
 
 .marketplace-error {
-  background: rgba(255,255,255,0.15);
+  background: #fff;
   border-radius: 12px;
   max-width: 400px;
   margin: 0 auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .marketplace-btn-retry {
@@ -58,15 +59,21 @@
   background: #fff;
   border-radius: 16px;
   padding: 1.75rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.08),
+    0 10px 20px -5px rgba(0, 0, 0, 0.08),
+    0 20px 40px -12px rgba(0, 0, 0, 0.12);
   position: relative;
   text-align: left;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s ease, box-shadow 0.25s ease;
 }
 
 .marketplace-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 12px 24px -4px rgba(0, 0, 0, 0.1),
+    0 24px 48px -8px rgba(0, 0, 0, 0.12),
+    0 32px 64px -16px rgba(0, 0, 0, 0.16);
 }
 
 .marketplace-card-badge {
@@ -166,7 +173,7 @@
   max-width: 1000px;
   margin: 2rem auto 0;
   padding: 1rem 1.5rem;
-  background: rgba(255,255,255,0.2);
+  background: #e2e8f0;
   border-radius: 12px;
   text-align: center;
 }
@@ -174,17 +181,18 @@
 .marketplace-footer-note p {
   margin: 0;
   font-size: 0.9rem;
-  color: rgba(255,255,255,0.95);
+  color: #475569;
 }
 
 .marketplace-empty {
   text-align: center;
   padding: 3rem 1rem;
-  background: rgba(255,255,255,0.2);
+  background: #fff;
   border-radius: 12px;
-  color: #fff;
+  color: #475569;
   max-width: 400px;
   margin: 0 auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 @media (max-width: 900px) {

@@ -106,10 +106,13 @@ textarea:focus-visible,
   outline-offset: 2px;
 }
 
+/* Liquid glass modals */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -120,9 +123,70 @@ textarea:focus-visible,
   max-width: 90vw;
   max-height: 90vh;
   overflow: auto;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  border-radius: 16px;
 }
 .modal-body {
   padding: 1rem 0;
+}
+
+/* Confirm modal (liquid glass) */
+.confirm-modal-liquid {
+  padding: 0.25rem 0;
+}
+.confirm-modal-message {
+  margin: 0 0 1.25rem 0;
+  color: var(--text-secondary, #475569);
+  line-height: 1.5;
+}
+.confirm-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.confirm-modal-btn {
+  padding: 0.5rem 1.25rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  border: none;
+}
+.confirm-modal-btn:active {
+  transform: scale(0.98);
+}
+.confirm-modal-btn-cancel {
+  background: rgba(0, 0, 0, 0.06);
+  color: #475569;
+}
+.confirm-modal-btn-cancel:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+.confirm-modal-btn-default {
+  background: var(--primary, #6366f1);
+  color: #fff;
+}
+.confirm-modal-btn-default:hover {
+  filter: brightness(1.05);
+}
+.confirm-modal-btn-primary {
+  background: var(--primary, #6366f1);
+  color: #fff;
+}
+.confirm-modal-btn-primary:hover {
+  filter: brightness(1.05);
+}
+.confirm-modal-btn-danger {
+  background: #dc2626;
+  color: #fff;
+}
+.confirm-modal-btn-danger:hover {
+  background: #b91c1c;
 }
 
 /* ========== Animations ========== */

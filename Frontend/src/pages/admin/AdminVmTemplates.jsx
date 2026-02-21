@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../../services/api';
 import toast from 'react-hot-toast';
+import { ConfirmModal } from '../../components';
 
 export default function AdminVmTemplates() {
   const [templates, setTemplates] = useState([]);
@@ -10,6 +11,7 @@ export default function AdminVmTemplates() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ name: '', description: '', flavorId: '', imageId: '' });
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => { load(); }, []);
 
@@ -61,15 +63,20 @@ export default function AdminVmTemplates() {
     setForm({ name: t.name, description: t.description || '', flavorId: t.flavorId, imageId: t.imageId });
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Supprimer ce modèle ?')) return;
+  const handleDeleteClick = (id) => setConfirmDeleteId(id);
+
+  const handleConfirmDelete = async () => {
+    const id = confirmDeleteId;
+    if (!id) return;
     try {
       await apiService.deleteAdminVmTemplate(id);
       toast.success('Modèle supprimé.');
+      setConfirmDeleteId(null);
       await load();
       if (editingId === id) setEditingId(null);
     } catch (err) {
       toast.error(err.response?.data?.error?.message || 'Erreur.');
+      setConfirmDeleteId(null);
     }
   };
 
@@ -122,7 +129,7 @@ export default function AdminVmTemplates() {
                   <div><strong>{t.name}</strong>{t.description && <span style={{ color: '#6b7280', marginLeft: '0.5rem' }}> – {t.description}</span>}</div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button type="button" className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }} onClick={() => handleEdit(t)}>Modifier</button>
-                    <button type="button" className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem', background: '#fef2f2', color: '#b91c1c' }} onClick={() => handleDelete(t.id)}>Suppr.</button>
+                    <button type="button" className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem', background: '#fef2f2', color: '#b91c1c' }} onClick={() => handleDeleteClick(t.id)}>Suppr.</button>
                   </div>
                 </li>
               ))}
@@ -130,6 +137,17 @@ export default function AdminVmTemplates() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Supprimer le modèle"
+        message="Supprimer ce modèle ?"
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        variant="danger"
+      />
     </div>
   );
 }

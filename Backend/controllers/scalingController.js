@@ -51,19 +51,22 @@ async function getScalingPolicy(req, res, next) {
 
 async function putScalingPolicy(req, res, next) {
   try {
-    if (await ensureVmOwnership(req, res) === null) return;
+    const vm = await ensureVmOwnership(req, res);
+    if (vm === null) return;
     const instanceId = req.vmInstanceId;
     const { metricType, thresholdHigh, thresholdLow, isActive, cooldownMinutes, baseFlavorId } = req.body;
     let policy = await ScalingPolicy.findOne({ where: { instanceId } });
     if (policy) {
-      await policy.update({
+      const updates = {
         metricType: metricType ?? policy.metricType,
         thresholdHigh: thresholdHigh ?? policy.thresholdHigh,
         thresholdLow: thresholdLow ?? policy.thresholdLow,
         isActive: isActive !== undefined ? isActive : policy.isActive,
-        cooldownMinutes: cooldownMinutes ?? policy.cooldownMinutes,
-        ...(baseFlavorId !== undefined && { baseFlavorId })
-      });
+        cooldownMinutes: cooldownMinutes ?? policy.cooldownMinutes
+      };
+      if (baseFlavorId !== undefined) updates.baseFlavorId = baseFlavorId || null;
+      else if (!policy.baseFlavorId) updates.baseFlavorId = vm.flavorId;
+      await policy.update(updates);
     } else {
       policy = await ScalingPolicy.create({
         instanceId,
@@ -72,7 +75,7 @@ async function putScalingPolicy(req, res, next) {
         thresholdLow: thresholdLow ?? 20,
         isActive: isActive !== false,
         cooldownMinutes: cooldownMinutes ?? 5,
-        baseFlavorId: baseFlavorId || null
+        baseFlavorId: baseFlavorId ?? vm.flavorId ?? null
       });
     }
     res.json({

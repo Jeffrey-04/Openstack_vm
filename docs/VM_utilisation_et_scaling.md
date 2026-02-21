@@ -51,9 +51,13 @@ Si votre déploiement OpenStack expose une console noVNC, l’accès se fait en 
 
 ### Incohérences à éviter
 
-- **Flavor de base** : la politique doit avoir un `baseFlavorId` cohérent avec le flavor actuel de la VM avant tout scale up ; sinon le scale down peut viser un mauvais flavor.
-- **Cooldown** : entre deux scale (up ou down), un cooldown (ex. 5 min) est appliqué pour éviter les aller-retours.
+- **Flavor de base** : la politique doit avoir un `baseFlavorId` cohérent avec le flavor actuel de la VM avant tout scale up ; sinon le scale down peut viser un mauvais flavor. À la création ou mise à jour de la politique, si `baseFlavorId` n’est pas fourni, il est fixé au flavor actuel de la VM.
+- **Cooldown** : entre deux scale (up ou down), un cooldown est appliqué (par défaut 5 min, configurable via `cooldownMinutes` sur la politique) pour éviter les aller-retours.
 - **Droits** : les routes scaling (politique, métriques, historique) sont protégées et vérifient que la VM appartient à l’utilisateur (`ensureVmOwnership`).
+
+### Facturation et scale en milieu de tranche (prorata)
+
+La facturation est par tranche de 30 min. Si une VM scale up ou down **en cours de tranche**, le moteur de facturation utilise l’historique **ScalingEvent** pour découper la tranche en segments (flavor + durée). Chaque segment est facturé au tarif du flavor actif pendant ce segment ; le total de la tranche est la somme des coûts par segment (prorata entre ancien et nouveau flavor). Aucune tranche n’est entièrement facturée au seul flavor de fin de tranche.
 
 ---
 

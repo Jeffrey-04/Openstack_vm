@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { ResourceUsage, PricingRule, VM, VmRuntime, Invoice, InvoiceItem, UsageSlice, User, PaymentMethod } = require('../models');
+const { ResourceUsage, PricingRule, VM, VmRuntime, Invoice, InvoiceItem, UsageSlice, User, PaymentMethod, ScalingEvent } = require('../models');
 const openstack = require('../config/openstack');
 const logger = require('../utils/logger');
 
@@ -160,7 +160,7 @@ function getLastSliceEnd(now = new Date()) {
   return new Date(Math.floor(ms / sliceMs) * sliceMs);
 }
 
-/** Build usage per (userId, instanceId) for the slice [sliceStart, sliceEnd] from VmRuntime. */
+/** Build usage per (userId, instanceId) for the slice [sliceStart, sliceEnd] from VmRuntime. Returns items with durationHours and intervals for prorata. */
 async function getRuntimeOverlapsForSlice(sliceStart, sliceEnd) {
   const runtimes = await VmRuntime.findAll({
     where: {
@@ -176,14 +176,56 @@ async function getRuntimeOverlapsForSlice(sliceStart, sliceEnd) {
     const start = new Date(Math.max(r.startedAt.getTime(), sliceStart.getTime()));
     const end = r.stoppedAt
       ? new Date(Math.min(r.stoppedAt.getTime(), sliceEnd.getTime()))
-      : sliceEnd;
+      : new Date(sliceEnd.getTime());
     const durationHours = Math.max(0, (end - start) / (1000 * 60 * 60));
     if (durationHours <= 0) continue;
     const key = `${r.userId}:${r.instanceId}`;
-    if (!byKey[key]) byKey[key] = { userId: r.userId, instanceId: r.instanceId, durationHours: 0 };
+    if (!byKey[key]) {
+      byKey[key] = { userId: r.userId, instanceId: r.instanceId, durationHours: 0, intervals: [] };
+    }
     byKey[key].durationHours += durationHours;
+    byKey[key].intervals.push({ start, end });
   }
   return Object.values(byKey);
+}
+
+/**
+ * Split [intervalStart, intervalEnd] into segments by flavor using ScalingEvents.
+ * flavorAtEnd = flavor at intervalEnd (current VM flavor if no event at end).
+ * Returns [{ start, end, flavorId }] with start/end as Date.
+ */
+async function getFlavorSegmentsForInterval(instanceId, intervalStart, intervalEnd, flavorAtEnd) {
+  const events = await ScalingEvent.findAll({
+    where: {
+      instanceId,
+      timestamp: { [Op.between]: [intervalStart, intervalEnd] }
+    },
+    order: [['timestamp', 'ASC']]
+  });
+  if (!events.length) {
+    return [{ start: new Date(intervalStart.getTime()), end: new Date(intervalEnd.getTime()), flavorId: flavorAtEnd }];
+  }
+  const segments = [];
+  let t = intervalStart.getTime();
+  for (const ev of events) {
+    const evTs = new Date(ev.timestamp).getTime();
+    if (t < evTs) {
+      segments.push({
+        start: new Date(t),
+        end: new Date(evTs),
+        flavorId: ev.oldFlavorId || flavorAtEnd
+      });
+    }
+    t = evTs;
+  }
+  if (t < intervalEnd.getTime()) {
+    segments.push({
+      start: new Date(t),
+      end: new Date(intervalEnd.getTime()),
+      flavorId: events[events.length - 1].newFlavorId || flavorAtEnd
+    });
+  }
+  return segments;
 }
 
 /** Generate invoices for the last 30-min slice (only for ACTIVE runtime). Idempotent. */
@@ -214,10 +256,19 @@ async function runBillingJobForSlice(sliceEnd) {
     let totalAmount = 0;
     for (const o of userOverlaps) {
       const vm = await VM.findOne({ where: { instanceId: o.instanceId, userId: o.userId } });
-      const flavorId = vm?.flavorId || null;
-      const amount = flavorId
-        ? await calculateSliceAmount(flavorId, o.durationHours)
-        : 0;
+      const flavorAtEnd = vm?.flavorId || null;
+      let amount = 0;
+      const intervals = o.intervals || [];
+      for (const { start: intStart, end: intEnd } of intervals) {
+        const segments = await getFlavorSegmentsForInterval(o.instanceId, intStart, intEnd, flavorAtEnd);
+        for (const seg of segments) {
+          if (!seg.flavorId) continue;
+          const segHours = (seg.end.getTime() - seg.start.getTime()) / (1000 * 60 * 60);
+          if (segHours <= 0) continue;
+          amount += await calculateSliceAmount(seg.flavorId, segHours);
+        }
+      }
+      amount = Math.round(amount * 100) / 100;
       totalAmount += amount;
       slices.push({
         userId: o.userId,

@@ -37,6 +37,24 @@ function normalizeVmParam(paramId) {
   return paramId.trim();
 }
 
+/** Prefer floating/public IP for SSH: accessIPv4, then public/floating/ext network, then first address. */
+function getPreferredAddress(server) {
+  const s = server || {};
+  if (s.accessIPv4 && String(s.accessIPv4).trim()) return String(s.accessIPv4).trim();
+  const addrs = s.addresses && typeof s.addresses === 'object' ? s.addresses : {};
+  const networkNames = Object.keys(addrs);
+  const prefer = networkNames.find((n) => /public|floating|ext|external/i.test(n));
+  if (prefer && Array.isArray(addrs[prefer]) && addrs[prefer].length > 0) {
+    const first = addrs[prefer].find((a) => a.version === 4 || a.addr);
+    if (first && first.addr) return first.addr;
+  }
+  for (const name of networkNames) {
+    const list = addrs[name];
+    if (Array.isArray(list) && list.length > 0 && list[0].addr) return list[0].addr;
+  }
+  return null;
+}
+
 // List VMs for the current user (from DB, optionally sync status from OpenStack)
 router.get('/', async (req, res, next) => {
   try {
@@ -49,7 +67,10 @@ router.get('/', async (req, res, next) => {
       vms.map(async (vm) => {
         try {
           const data = await openstack.getServer(vm.instanceId, projectId);
-          return { ...data.server, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
+          const raw = data.server || data;
+          const s = { ...raw, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
+          s.preferredAddress = getPreferredAddress(s);
+          return s;
         } catch {
           return { id: vm.instanceId, name: vm.instanceId, status: vm.status || 'UNKNOWN', dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
         }
@@ -133,7 +154,7 @@ router.get('/:id/console', async (req, res, next) => {
   }
 });
 
-// Get specific VM (must belong to current user), with flavor details for detail page
+// Get specific VM (must belong to current user), with flavor details and image name for detail page
 router.get('/:id', async (req, res, next) => {
   try {
     const vm = await findVmByParam(req.params.id, req.userId);
@@ -142,7 +163,10 @@ router.get('/:id', async (req, res, next) => {
     }
     const projectId = req.user?.openstackProjectId || null;
     const data = await openstack.getServer(vm.instanceId, projectId);
-    const server = { ...data.server, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
+    const raw = data.server || data;
+    const server = { ...raw, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
+    server.preferredAddress = getPreferredAddress(server);
+
     const flavorId = server.flavor?.id || server.flavorId || vm.flavorId;
     if (flavorId) {
       try {
@@ -152,6 +176,18 @@ router.get('/:id', async (req, res, next) => {
         // keep existing server.flavor or id only
       }
     }
+
+    const imageId = server.image?.id || (typeof server.image === 'string' ? server.image : null);
+    if (imageId) {
+      try {
+        const imageData = await openstack.getImage(imageId);
+        const img = imageData.image || imageData;
+        server.image = { id: imageId, name: img.name || img.display_name || null };
+      } catch {
+        server.image = server.image && typeof server.image === 'object' ? server.image : { id: imageId, name: null };
+      }
+    }
+
     res.json({
       success: true,
       server

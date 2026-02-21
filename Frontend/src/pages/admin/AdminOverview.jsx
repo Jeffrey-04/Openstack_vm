@@ -180,7 +180,7 @@ export default function AdminOverview() {
               </div>
               <div className="admin-vm-card-body">
                 <div><span className="admin-vm-card-label">Config</span> {vm.flavor?.vcpus || 4} vCPU, {vm.flavor?.ram ? (vm.flavor.ram / 1024).toFixed(0) : 8} GB RAM</div>
-                <div><span className="admin-vm-card-label">OS</span> {vm.image?.name || 'Ubuntu 22.04'}</div>
+                <div><span className="admin-vm-card-label">OS</span> {vm.image?.name || '—'}</div>
                 <div><span className="admin-vm-card-label">IP</span> <code className="admin-ip-address">{vm.addresses && Object.values(vm.addresses)[0]?.[0]?.addr || '—'}</code></div>
               </div>
               <div className="admin-action-buttons">
@@ -218,7 +218,7 @@ export default function AdminOverview() {
                   </td>
                   <td>
                     <div className="admin-os-cell">
-                      {vm.image?.name || 'Ubuntu 22.04'}
+                      {vm.image?.name || '—'}
                     </div>
                   </td>
                   <td>

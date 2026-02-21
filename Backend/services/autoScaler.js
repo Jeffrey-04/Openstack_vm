@@ -9,14 +9,16 @@ async function getProjectIdForInstance(instanceId) {
   return vm?.User?.openstackProjectId || null;
 }
 
-async function isInCooldown(instanceId) {
+async function isInCooldown(instanceId, cooldownMinutes = COOLDOWN_MINUTES) {
+  const minutes = Number(cooldownMinutes);
+  const effective = Number.isFinite(minutes) && minutes >= 0 ? minutes : COOLDOWN_MINUTES;
   const last = await ScalingEvent.findOne({
     where: { instanceId },
     order: [['timestamp', 'DESC']]
   });
   if (!last) return false;
   const elapsed = (Date.now() - new Date(last.timestamp).getTime()) / (60 * 1000);
-  return elapsed < COOLDOWN_MINUTES;
+  return elapsed < effective;
 }
 
 async function findNextFlavor(currentFlavorId, direction) {
@@ -52,7 +54,8 @@ async function findFlavorForScaleUp(currentFlavorId, deltaVcpus, deltaRamMb, pro
 }
 
 async function scaleUp(instanceId, policy, currentValue) {
-  if (await isInCooldown(instanceId)) return;
+  const cooldown = policy?.cooldownMinutes ?? COOLDOWN_MINUTES;
+  if (await isInCooldown(instanceId, cooldown)) return;
   const projectId = await getProjectIdForInstance(instanceId);
   let server;
   try {
@@ -100,7 +103,8 @@ async function scaleUp(instanceId, policy, currentValue) {
 }
 
 async function scaleDown(instanceId, policy, currentValue) {
-  if (await isInCooldown(instanceId)) return;
+  const cooldown = policy?.cooldownMinutes ?? COOLDOWN_MINUTES;
+  if (await isInCooldown(instanceId, cooldown)) return;
   const projectId = await getProjectIdForInstance(instanceId);
   let server;
   try {

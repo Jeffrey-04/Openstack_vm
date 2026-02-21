@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import apiService from '../services/api';
 import toast from 'react-hot-toast';
 import Skeleton from '../components/Skeleton';
+import { ConfirmModal } from '../components';
 import { UsageChart } from '../components/charts/UsageChart';
 import './VMDetail.css';
 
@@ -49,6 +50,7 @@ function VMDetail() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [consoleLoading, setConsoleLoading] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -88,21 +90,30 @@ function VMDetail() {
   };
 
   const handleAction = async (action) => {
-    if (action === 'delete' && !window.confirm('Supprimer cette VM ? Cette action est irréversible.')) return;
+    if (action === 'delete') {
+      setConfirmDeleteOpen(true);
+      return;
+    }
     try {
       setActionLoading(true);
-      if (action === 'delete') {
-        await apiService.deleteVM(id);
-        toast.success('VM supprimée');
-        navigate(`${basePath}/vms`);
-        return;
-      }
       await apiService.vmAction(id, action);
       toast.success(action === 'reboot' ? 'Redémarrage en cours' : action === 'start' ? 'Démarrage en cours' : 'Arrêt en cours');
       setTimeout(loadVm, 2000);
     } catch (err) {
       toast.error(err.response?.data?.error?.message || 'Erreur lors de l\'action');
     } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      setActionLoading(true);
+      await apiService.deleteVM(id);
+      toast.success('VM supprimée');
+      navigate(`${basePath}/vms`);
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Erreur lors de la suppression');
       setActionLoading(false);
     }
   };
@@ -159,12 +170,12 @@ function VMDetail() {
   }
 
   const statusInfo = STATUS_MAP[vm.status] || { label: vm.status, class: 'vm-detail-status-unknown' };
-  const firstAddr = vm.addresses && Object.values(vm.addresses)[0]?.[0]?.addr;
-  const sshLine = firstAddr ? `ssh root@${firstAddr}` : '';
+  const displayIp = vm.preferredAddress || vm.accessIPv4 || (vm.addresses && Object.values(vm.addresses)[0]?.[0]?.addr);
+  const sshLine = displayIp ? `ssh root@${displayIp}` : '';
   const flavor = vm.flavor || {};
   const ramGb = flavor.ram != null ? (flavor.ram / 1024).toFixed(0) : '—';
-  const osName = vm.image?.name || 'Ubuntu';
-  const osShort = osName.split(' ')[0] || 'Ubuntu';
+  const osName = vm.image?.name || '—';
+  const osShort = osName !== '—' ? osName.split(' ')[0] : '—';
 
   const cpuMetric = (metrics?.cpu_util || [])[0]?.value;
   const memMetric = (metrics?.memory_usage || metrics?.mem_util || [])[0]?.value;
@@ -200,7 +211,7 @@ function VMDetail() {
 
       <div className="vm-detail-top">
         <div className="vm-detail-card vm-detail-card-os">
-          <span className="vm-detail-os-logo">{osShort}</span>
+          {osShort !== '—' && <span className="vm-detail-os-logo">{osShort}</span>}
           <span className="vm-detail-os-version">{osName}</span>
           <span className="vm-detail-plan">KVM {flavor.vcpus || '—'}</span>
           <span className={`vm-detail-status ${statusInfo.class}`}>{statusInfo.label}</span>
@@ -348,9 +359,9 @@ function VMDetail() {
           <div className="vm-detail-info-row">
             <span className="vm-detail-info-label">IPv4</span>
             <span className="vm-detail-info-value">
-              {firstAddr || '—'}
-              {firstAddr && (
-                <button type="button" className="vm-detail-btn-icon" onClick={() => handleCopy(firstAddr, 'Adresse IP')} title="Copier">Copier</button>
+              {displayIp || '—'}
+              {displayIp && (
+                <button type="button" className="vm-detail-btn-icon" onClick={() => handleCopy(displayIp, 'Adresse IP')} title="Copier">Copier</button>
               )}
             </span>
           </div>
@@ -466,6 +477,17 @@ function VMDetail() {
           Supprimer la VM
         </button>
       </div>
+
+      <ConfirmModal
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Supprimer la VM"
+        message="Supprimer cette VM ? Cette action est irréversible."
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        variant="danger"
+      />
     </div>
   );
 }

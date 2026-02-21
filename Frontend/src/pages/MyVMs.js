@@ -4,6 +4,7 @@ import apiService from '../services/api';
 import toast from 'react-hot-toast';
 import Skeleton from '../components/Skeleton';
 import EmptyState from '../components/common/EmptyState';
+import { ConfirmModal } from '../components';
 
 function MyVMs() {
   const location = useLocation();
@@ -12,6 +13,7 @@ function MyVMs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
+  const [confirmDeleteVmId, setConfirmDeleteVmId] = useState(null);
 
   useEffect(() => {
     loadVMs();
@@ -43,25 +45,16 @@ function MyVMs() {
   };
 
   const handleVMAction = async (vmId, action) => {
-    if (action === 'delete' && !window.confirm('Êtes-vous sûr de vouloir supprimer cette VM ?')) {
+    if (action === 'delete') {
+      setConfirmDeleteVmId(vmId);
       return;
     }
 
     try {
-      setActionLoading({ ...actionLoading, [vmId]: action });
-      
-      if (action === 'delete') {
-        await apiService.deleteVM(vmId);
-      } else {
-        await apiService.vmAction(vmId, action);
-      }
-
-      // Reload VMs after action
-      setTimeout(() => {
-        loadVMs();
-        setActionLoading({ ...actionLoading, [vmId]: null });
-      }, 1000);
-
+      setActionLoading((prev) => ({ ...prev, [vmId]: action }));
+      await apiService.vmAction(vmId, action);
+      toast.success(action === 'reboot' ? 'Redémarrage en cours' : action === 'start' ? 'Démarrage en cours' : 'Arrêt en cours');
+      setTimeout(() => loadVMs(), 1000);
     } catch (err) {
       console.error('Error performing action:', err);
       const status = err.response?.status;
@@ -71,6 +64,24 @@ function MyVMs() {
       } else {
         toast.error(msg || err.message || 'Erreur lors de l\'action');
       }
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [vmId]: null }));
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    const vmId = confirmDeleteVmId;
+    if (!vmId) return;
+    try {
+      setActionLoading((prev) => ({ ...prev, [vmId]: 'delete' }));
+      await apiService.deleteVM(vmId);
+      toast.success('VM supprimée');
+      setConfirmDeleteVmId(null);
+      setTimeout(() => loadVMs(), 1000);
+    } catch (err) {
+      const msg = err.response?.data?.error?.message;
+      toast.error(msg || err.message || 'Erreur lors de la suppression');
+    } finally {
       setActionLoading((prev) => ({ ...prev, [vmId]: null }));
     }
   };
@@ -193,9 +204,9 @@ function MyVMs() {
                 <div style={{ marginBottom: '0.5rem' }}>
                   <strong>Créé:</strong> {new Date(vm.created).toLocaleDateString('fr-FR')}
                 </div>
-                {vm.addresses && Object.keys(vm.addresses).length > 0 && (
+                {(vm.preferredAddress || (vm.addresses && Object.keys(vm.addresses).length > 0)) && (
                   <div>
-                    <strong>IP:</strong> {Object.values(vm.addresses)[0]?.[0]?.addr || 'N/A'}
+                    <strong>IP:</strong> {vm.preferredAddress || vm.accessIPv4 || Object.values(vm.addresses)[0]?.[0]?.addr || 'N/A'}
                   </div>
                 )}
               </div>
@@ -254,6 +265,17 @@ function MyVMs() {
           Vous pouvez également gérer vos VMs depuis le dashboard OpenStack pour des options avancées.
         </p>
       </div>
+
+      <ConfirmModal
+        open={!!confirmDeleteVmId}
+        onClose={() => setConfirmDeleteVmId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Supprimer la VM"
+        message="Êtes-vous sûr de vouloir supprimer cette VM ?"
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        variant="danger"
+      />
     </div>
   );
 }
