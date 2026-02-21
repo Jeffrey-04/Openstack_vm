@@ -1,7 +1,7 @@
 .vm-detail {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1.5rem 1.5rem 2rem;
 }
 
 .vm-detail-error {
@@ -44,7 +44,7 @@
 .vm-detail-top {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: 1.25rem;
   margin-bottom: 2rem;
 }
 
@@ -241,7 +241,10 @@
 }
 
 .vm-detail-section {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
+}
+.vm-detail-section:last-of-type {
+  margin-bottom: 1.5rem;
 }
 
 .vm-detail-section-title {
@@ -263,7 +266,7 @@
 .vm-detail-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .vm-detail-metric-card {
@@ -299,7 +302,7 @@
 .vm-detail-security {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .vm-detail-security-card {

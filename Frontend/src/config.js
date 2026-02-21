@@ -7,8 +7,12 @@ const API_BASE_URL =
     ? window.location.origin
     : (process.env.REACT_APP_API_URL ?? '');
 
+/** URL du dashboard OpenStack (sans port 3000) */
+export const OPENSTACK_DASHBOARD_URL = process.env.REACT_APP_OPENSTACK_DASHBOARD || 'http://45.9.191.91/dashboard/';
+
 export const API = {
   BASE_URL: API_BASE_URL,
+  OPENSTACK_DASHBOARD_URL,
   ENDPOINTS: {
     HEALTH: '/api/health',
     OPENSTACK_STATUS: '/api/openstack/status',

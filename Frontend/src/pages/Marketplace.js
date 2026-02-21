@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import apiService from '../services/api';
+import './Marketplace.css';
 
 function Marketplace() {
   const [flavors, setFlavors] = useState([]);
@@ -26,9 +27,7 @@ function Marketplace() {
   };
 
   const formatRAM = (ram) => {
-    if (ram >= 1024) {
-      return `${(ram / 1024).toFixed(0)} GB`;
-    }
+    if (ram >= 1024) return `${(ram / 1024).toFixed(0)} GB`;
     return `${ram} MB`;
   };
 
@@ -37,110 +36,108 @@ function Marketplace() {
     return `${Number(price).toLocaleString('fr-FR')} FCFA`;
   };
 
+  /* Design image 1: 3 plans type Basic / Developer / Advanced. On mappe les flavors sur 3 cartes; si plus de 3, on prend les 3 premiers ou on crée des paliers. */
+  const planBasic = flavors[0] || { name: 'Basic', ram: 1024, vcpus: 1, disk: 25, price: 5000 };
+  const planDeveloper = flavors[1] || flavors[0] || { name: 'Developer', ram: 5120, vcpus: 2, disk: 256, price: 15000 };
+  const planAdvanced = flavors[2] || flavors[1] || flavors[0] || { name: 'Advanced', ram: 25600, vcpus: 4, disk: 1024, price: 45000 };
+
+  const plans = [
+    {
+      id: planBasic.id || 'basic',
+      name: 'Basic',
+      description: 'Idéal pour les projets légers et les tests.',
+      price: planBasic.price,
+      ram: planBasic.ram,
+      storage: planBasic.disk,
+      ssd: Math.min(planBasic.disk || 10, 10),
+      support: '1 an',
+      flavor: planBasic,
+      mostUsed: false,
+    },
+    {
+      id: planDeveloper.id || 'developer',
+      name: 'Developer',
+      description: 'Équilibre parfait pour le développement et les petites applications.',
+      price: planDeveloper.price,
+      ram: planDeveloper.ram,
+      storage: planDeveloper.disk,
+      ssd: Math.min(planDeveloper.disk || 100, 100),
+      support: 'Support à vie',
+      flavor: planDeveloper,
+      mostUsed: true,
+    },
+    {
+      id: planAdvanced.id || 'advanced',
+      name: 'Advanced',
+      description: 'Pour les applications exigeantes et la production.',
+      price: planAdvanced.price,
+      ram: planAdvanced.ram,
+      storage: planAdvanced.disk,
+      ssd: Math.min(planAdvanced.disk || 240, 240),
+      support: 'Support à vie',
+      flavor: planAdvanced,
+      mostUsed: false,
+    },
+  ];
+
   if (loading) {
     return (
-      <div className="loading">
-        <div className="spinner"></div>
-        <p style={{ marginTop: '1rem', color: 'white' }}>Chargement du marketplace...</p>
+      <div className="marketplace-wrap">
+        <div className="marketplace-loading">
+          <div className="marketplace-spinner" />
+          <p>Chargement du marketplace...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="alert alert-error">
-        <strong>Erreur:</strong> {error}
-        <button onClick={loadFlavors} className="btn btn-sm btn-primary" style={{ marginLeft: '1rem' }}>
-          Réessayer
-        </button>
+      <div className="marketplace-wrap">
+        <div className="marketplace-error">
+          <strong>Erreur</strong> {error}
+          <button type="button" onClick={loadFlavors} className="marketplace-btn-retry">Réessayer</button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="card" style={{ marginBottom: '2rem' }}>
-        <div className="card-header">
-          <h1 className="card-title">Marketplace</h1>
-          <p className="card-subtitle">Choisissez la configuration parfaite pour votre machine virtuelle</p>
-        </div>
-      </div>
-
-      {flavors.length === 0 ? (
-        <div className="alert alert-info">
-          <strong>Info:</strong> Aucune configuration disponible pour le moment.
-        </div>
-      ) : (
-        <div className="grid grid-3">
-          {flavors.map((flavor) => (
-            <div key={flavor.id} className="card" style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
-                <span className="badge badge-info">{flavor.name}</span>
-              </div>
-              
-              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#64748b' }} />
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
-                  {flavor.name}
-                </h3>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem', borderTop: '2px solid #f3f4f6', paddingTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ color: '#6b7280' }}>RAM:</span>
-                  <strong>{formatRAM(flavor.ram)}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ color: '#6b7280' }}>vCPUs:</span>
-                  <strong>{flavor.vcpus}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ color: '#6b7280' }}>Disque:</span>
-                  <strong>{flavor.disk} GB</strong>
-                </div>
-              </div>
-
-              <div style={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-                padding: '1rem', 
-                borderRadius: '8px',
-                textAlign: 'center',
-                marginBottom: '1rem'
-              }}>
-                <div style={{ color: 'white', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-                  À partir de
-                </div>
-                <div style={{ color: 'white', fontSize: '2rem', fontWeight: 'bold' }}>
-                  {formatPriceFCFA(flavor.price)}
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
-                  par mois
-                </div>
-              </div>
-
-              <Link 
-                to="/client/create" 
-                state={{ selectedFlavor: flavor }}
-                className="btn btn-primary" 
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                Créer avec cette config
-              </Link>
+    <div className="marketplace-wrap">
+      <div className="marketplace-cards">
+        {plans.map((plan) => (
+          <div key={plan.id} className="marketplace-card">
+            {plan.mostUsed && (
+              <div className="marketplace-card-badge">Le plus utilisé</div>
+            )}
+            <h3 className="marketplace-card-title">{plan.name}</h3>
+            <p className="marketplace-card-desc">{plan.description}</p>
+            <div className="marketplace-price-wrap">
+              <span className="marketplace-price-main">{formatPriceFCFA(plan.price).replace(/\sFCFA$/, '')}</span>
+              <span className="marketplace-price-decimal"> FCFA</span>
             </div>
-          ))}
-        </div>
-      )}
-
-      <div className="card" style={{ marginTop: '2rem', background: '#fef3c7' }}>
-        <h3 style={{ marginBottom: '0.5rem' }}>Tarification transparente</h3>
-        <p style={{ color: '#92400e', marginBottom: '0' }}>
-          Tous les prix sont mensuels en FCFA. Pas de frais cachés. Annulez à tout moment.
-          Facturation à l'heure pour plus de flexibilité.
-        </p>
+            <p className="marketplace-price-period">Par mois</p>
+            <ul className="marketplace-features">
+              <li>{formatRAM(plan.ram)} RAM</li>
+              <li>{plan.storage} GB Stockage</li>
+              <li>{plan.ssd} GB SSD</li>
+              <li>{plan.support} Support</li>
+            </ul>
+            <Link
+              to="/client/create"
+              state={{ selectedFlavor: plan.flavor }}
+              className="marketplace-btn-buy"
+            >
+              Acheter
+            </Link>
+          </div>
+        ))}
+      </div>
+      <div className="marketplace-footer-note">
+        <p>Tous les prix sont mensuels en FCFA. Pas de frais cachés. Annulez à tout moment.</p>
       </div>
     </div>
   );
 }
 
 export default Marketplace;
-

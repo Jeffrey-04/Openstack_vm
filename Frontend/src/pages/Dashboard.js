@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import apiService from '../services/api';
+import { API } from '../config';
 
 function Dashboard() {
   const location = useLocation();
@@ -131,7 +132,7 @@ function Dashboard() {
             <Link to={`${basePath}/vms`} className="btn btn-secondary">
               Gérer mes VMs
             </Link>
-            <a href="/dashboard" target="_blank" className="btn btn-warning">
+            <a href={API.OPENSTACK_DASHBOARD_URL} target="_blank" rel="noopener noreferrer" className="btn btn-warning">
               Ouvrir OpenStack Dashboard
             </a>
           </div>

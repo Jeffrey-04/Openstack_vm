@@ -1,7 +1,118 @@
 .settings-page {
   padding: 0;
-  background: #f5f5f9;
+  background: #f1f5f9;
   min-height: 100%;
+}
+
+/* Design image 2 : profil type mentoree – carte profil, onglets, sections */
+.settings-profile-layout {
+  padding-bottom: 2rem;
+}
+
+.settings-profile-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.settings-profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.settings-profile-name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+
+.settings-profile-role {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.settings-tab {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #64748b;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.settings-tab:hover {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.settings-tab.active {
+  background: #7c3aed;
+  color: #fff;
+  border-color: #7c3aed;
+}
+
+.settings-section-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.settings-section-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+}
+
+.settings-section-desc {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0 0 1rem 0;
+}
+
+.settings-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.settings-tag {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #6d28d9;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 20px;
 }
 
 .settings-loading {

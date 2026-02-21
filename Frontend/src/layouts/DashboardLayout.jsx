@@ -17,6 +17,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { API } from '../config';
 import './DashboardLayout.css';
 
 const ICON_MAP = {
@@ -41,7 +42,7 @@ const CLIENT_SIDEBAR_ITEMS = [
   { label: 'Mes VMs', path: '/client/vms', icon: 'Server' },
   { label: 'Marketplace', path: '/client/marketplace', icon: 'ShoppingCart' },
   { label: 'Créer une VM', path: '/client/create', icon: 'PlusCircle' },
-  { label: 'OpenStack', path: '/dashboard', external: true, icon: 'Settings' },
+  { label: 'OpenStack', path: API.OPENSTACK_DASHBOARD_URL, external: true, icon: 'Settings' },
   { label: 'Paramètres', path: '/client/settings', icon: 'Settings' },
   { label: 'Facturation', path: '/client/billing', icon: 'CreditCard' },
 ];
@@ -123,11 +124,6 @@ export default function DashboardLayout({ type = 'client' }) {
             )
           )}
         </nav>
-        <div className="sidebar-pro-card">
-          <p className="sidebar-pro-card-title">VM Pro</p>
-          <p className="sidebar-pro-card-desc">Toutes les fonctionnalités avancées.</p>
-          <a href="/client/billing" className="sidebar-pro-card-btn">En savoir plus</a>
-        </div>
         <div className="sidebar-footer">
           <div className="sidebar-user">
             <span className="sidebar-user-avatar">
@@ -177,14 +173,6 @@ export default function DashboardLayout({ type = 'client' }) {
             />
           </div>
           <div className="topbar-actions">
-            <a
-              href="/dashboard"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="topbar-btn topbar-btn-terminal"
-            >
-              Terminal
-            </a>
             <button type="button" className="topbar-icon-btn" aria-label="Notifications">
               <Bell size={20} />
             </button>
