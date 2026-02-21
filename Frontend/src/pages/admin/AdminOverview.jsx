@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { DollarSign, ShoppingCart, Server, Users } from 'lucide-react';
 import apiService from '../../services/api';
 import Skeleton from '../../components/Skeleton';
 import './AdminOverview.css';
+
+const KPI_COLORS = {
+  pink: { bg: '#fdf2f8', border: '#f9a8d4', text: '#be185d', icon: '#ec4899' },
+  orange: { bg: '#fff7ed', border: '#fdba74', text: '#c2410c', icon: '#f97316' },
+  green: { bg: '#f0fdf4', border: '#86efac', text: '#15803d', icon: '#22c55e' },
+  purple: { bg: '#faf5ff', border: '#c4b5fd', text: '#6d28d9', icon: '#8b5cf6' },
+};
 
 export default function AdminOverview() {
   const [stats, setStats] = useState({
@@ -85,10 +93,10 @@ export default function AdminOverview() {
 
   if (loading) {
     return (
-      <div className="dashboard-figma admin-dashboard-figma">
-        <div className="dashboard-figma-grid admin-dashboard-figma-grid">
+      <div className="dashboard-figma admin-dashboard-figma sales-dashboard">
+        <div className="sales-kpi-row">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} variant="card" height={120} className="dashboard-figma-card" />
+            <Skeleton key={i} variant="card" height={110} className="sales-kpi-card" />
           ))}
         </div>
         <div className="admin-figma-table-skeleton">
@@ -104,41 +112,48 @@ export default function AdminOverview() {
   }
 
   return (
-    <div className="dashboard-figma admin-dashboard-figma">
-      {/* Ligne 1: KPIs type Figma (Revenue-style) */}
-      <div className="dashboard-figma-grid admin-dashboard-figma-grid">
-        <div className="dashboard-figma-card dashboard-figma-card-revenue">
-          <div className="dashboard-figma-card-head">
-            <h3 className="dashboard-figma-card-title">Total VPS</h3>
-            <Link to="/admin/vms" className="dashboard-figma-link">Voir rapport</Link>
+    <div className="dashboard-figma admin-dashboard-figma sales-dashboard">
+      {/* 4 KPI colorées style Sales Dashboard */}
+      <div className="sales-kpi-row">
+        <div className="sales-kpi-card" style={{ background: KPI_COLORS.pink.bg, borderColor: KPI_COLORS.pink.border }}>
+          <div className="sales-kpi-icon" style={{ background: KPI_COLORS.pink.icon }}>
+            <DollarSign size={20} color="#fff" />
           </div>
-          <div className="dashboard-figma-metric">{stats.totalVMs}</div>
-          <p className="dashboard-figma-period">VPS sur la plateforme.</p>
+          <div className="sales-kpi-content">
+            <div className="sales-kpi-value" style={{ color: KPI_COLORS.pink.text }}>{stats.totalVMs}</div>
+            <div className="sales-kpi-label">Total VPS</div>
+            <div className="sales-kpi-trend sales-trend-up">sur la plateforme</div>
+          </div>
         </div>
-        <div className="dashboard-figma-card dashboard-figma-card-revenue">
-          <div className="dashboard-figma-card-head">
-            <h3 className="dashboard-figma-card-title">VPS Actifs</h3>
-            <Link to="/admin/vms" className="dashboard-figma-link">Voir rapport</Link>
+        <div className="sales-kpi-card" style={{ background: KPI_COLORS.orange.bg, borderColor: KPI_COLORS.orange.border }}>
+          <div className="sales-kpi-icon" style={{ background: KPI_COLORS.orange.icon }}>
+            <ShoppingCart size={20} color="#fff" />
           </div>
-          <div className="dashboard-figma-metric">{stats.activeVMs}</div>
-          <div className="dashboard-figma-trend dashboard-figma-trend-up">↑ En cours d&apos;exécution</div>
-          <p className="dashboard-figma-period">Cette semaine.</p>
+          <div className="sales-kpi-content">
+            <div className="sales-kpi-value" style={{ color: KPI_COLORS.orange.text }}>{stats.activeVMs}</div>
+            <div className="sales-kpi-label">VPS actifs</div>
+            <div className="sales-kpi-trend sales-trend-up">↑ En cours d&apos;exécution</div>
+          </div>
         </div>
-        <div className="dashboard-figma-card dashboard-figma-card-revenue">
-          <div className="dashboard-figma-card-head">
-            <h3 className="dashboard-figma-card-title">VPS Suspendus</h3>
-            <Link to="/admin/vms" className="dashboard-figma-link">Voir rapport</Link>
+        <div className="sales-kpi-card" style={{ background: KPI_COLORS.green.bg, borderColor: KPI_COLORS.green.border }}>
+          <div className="sales-kpi-icon" style={{ background: KPI_COLORS.green.icon }}>
+            <Server size={20} color="#fff" />
           </div>
-          <div className="dashboard-figma-metric">{stats.suspendedVMs}</div>
-          <p className="dashboard-figma-period">Arrêtés ou en pause.</p>
+          <div className="sales-kpi-content">
+            <div className="sales-kpi-value" style={{ color: KPI_COLORS.green.text }}>{stats.suspendedVMs}</div>
+            <div className="sales-kpi-label">VPS suspendus</div>
+            <div className="sales-kpi-trend">Arrêtés ou en pause</div>
+          </div>
         </div>
-        <div className="dashboard-figma-card dashboard-figma-card-revenue">
-          <div className="dashboard-figma-card-head">
-            <h3 className="dashboard-figma-card-title">Total Utilisateurs</h3>
-            <Link to="/admin/users" className="dashboard-figma-link">Voir rapport</Link>
+        <div className="sales-kpi-card" style={{ background: KPI_COLORS.purple.bg, borderColor: KPI_COLORS.purple.border }}>
+          <div className="sales-kpi-icon" style={{ background: KPI_COLORS.purple.icon }}>
+            <Users size={20} color="#fff" />
           </div>
-          <div className="dashboard-figma-metric">{stats.totalUsers}</div>
-          <p className="dashboard-figma-period">Inscrits sur la plateforme.</p>
+          <div className="sales-kpi-content">
+            <div className="sales-kpi-value" style={{ color: KPI_COLORS.purple.text }}>{stats.totalUsers}</div>
+            <div className="sales-kpi-label">Total utilisateurs</div>
+            <div className="sales-kpi-trend">Inscrits</div>
+          </div>
         </div>
       </div>
 

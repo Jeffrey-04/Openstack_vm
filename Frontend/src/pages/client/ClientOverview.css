@@ -335,11 +335,94 @@
   font-size: 0.95rem;
 }
 
-/* ——— Dashboard style Figma (grille cartes) ——— */
+/* ——— Sales Dashboard: coloré, style Figma ——— */
 .dashboard-figma {
   padding: 0;
-  background: #f7f8fa;
+  background: #f1f5f9;
   min-height: 100%;
+}
+
+.sales-dashboard .dashboard-figma-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.sales-dashboard .dashboard-figma-link {
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+/* 4 KPI colorées (rose, orange, vert, violet) */
+.sales-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.sales-kpi-card {
+  border-radius: 14px;
+  padding: 1.25rem;
+  border: 2px solid;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.sales-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.sales-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sales-kpi-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sales-kpi-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.sales-kpi-label {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+.sales-kpi-trend {
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+  color: #64748b;
+}
+
+.sales-trend-up {
+  color: #059669 !important;
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .sales-kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .sales-kpi-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dashboard-figma-grid {
@@ -550,7 +633,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #6366f1;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
   color: #fff;
   display: flex;
   align-items: center;
@@ -580,9 +663,9 @@
 
 .dashboard-figma-list-link {
   font-size: 0.85rem;
-  color: #6366f1;
+  color: #7c3aed;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .dashboard-figma-list-link:hover {
@@ -599,9 +682,9 @@
   display: inline-block;
   margin-top: 0.75rem;
   font-size: 0.85rem;
-  color: #6366f1;
+  color: #7c3aed;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .dashboard-figma-card-footer-link:hover {
@@ -632,17 +715,19 @@
 .dashboard-figma-btn-primary {
   display: inline-block;
   padding: 0.6rem 1.25rem;
-  background: #6366f1;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
   color: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.95rem;
   font-weight: 600;
   text-decoration: none;
-  transition: background 0.15s;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
 }
 
 .dashboard-figma-btn-primary:hover {
-  background: #4f46e5;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
 }
 
 @media (max-width: 900px) {

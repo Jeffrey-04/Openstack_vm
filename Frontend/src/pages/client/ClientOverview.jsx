@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { DollarSign, ShoppingCart, Server, Users } from 'lucide-react';
 import apiService from '../../services/api';
 import toast from 'react-hot-toast';
 import Skeleton from '../../components/Skeleton';
 import './ClientOverview.css';
 
-const CHART_COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd'];
-const TREND_UP = '#059669';
-const TREND_DOWN = '#dc2626';
+/* Sales Dashboard: vives couleurs (rose, orange, vert, violet, bleu) */
+const KPI_COLORS = {
+  pink: { bg: '#fdf2f8', border: '#f9a8d4', text: '#be185d', icon: '#ec4899' },
+  orange: { bg: '#fff7ed', border: '#fdba74', text: '#c2410c', icon: '#f97316' },
+  green: { bg: '#f0fdf4', border: '#86efac', text: '#15803d', icon: '#22c55e' },
+  purple: { bg: '#faf5ff', border: '#c4b5fd', text: '#6d28d9', icon: '#8b5cf6' },
+};
+const CHART_COLORS = ['#3b82f6', '#22c55e', '#ef4444', '#eab308', '#8b5cf6', '#ec4899'];
 
 export default function ClientOverview() {
   const [vms, setVMs] = useState([]);
@@ -37,10 +43,10 @@ export default function ClientOverview() {
 
   let pieData = [
     { name: 'Actifs', value: activeCount, color: CHART_COLORS[0] },
-    { name: 'Arrêtés', value: stoppedCount, color: CHART_COLORS[1] },
-    { name: 'Autres', value: Math.max(0, otherCount), color: CHART_COLORS[2] },
+    { name: 'Arrêtés', value: stoppedCount, color: CHART_COLORS[2] },
+    { name: 'Autres', value: Math.max(0, otherCount), color: CHART_COLORS[4] },
   ].filter((d) => d.value > 0);
-  if (pieData.length === 0) pieData = [{ name: 'Aucune VM', value: 1, color: '#e5e7eb' }];
+  if (pieData.length === 0) pieData = [{ name: 'Aucune VM', value: 1, color: '#94a3b8' }];
 
   const barData =
     vms.length > 0
@@ -71,9 +77,16 @@ export default function ClientOverview() {
     }
   };
 
+  const trendPct = vms.length > 0 ? (activeCount / vms.length * 100).toFixed(1) : '0';
+
   if (loading) {
     return (
-      <div className="dashboard-figma">
+      <div className="dashboard-figma sales-dashboard">
+        <div className="sales-kpi-row">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} variant="card" height={110} className="sales-kpi-card" />
+          ))}
+        </div>
         <div className="dashboard-figma-grid">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} variant="card" height={240} className="dashboard-figma-card" />
@@ -84,7 +97,51 @@ export default function ClientOverview() {
   }
 
   return (
-    <div className="dashboard-figma">
+    <div className="dashboard-figma sales-dashboard">
+      {/* 4 KPI colorées style Sales Dashboard */}
+      <div className="sales-kpi-row">
+        <div className="sales-kpi-card" style={{ background: KPI_COLORS.pink.bg, borderColor: KPI_COLORS.pink.border }}>
+          <div className="sales-kpi-icon" style={{ background: KPI_COLORS.pink.icon }}>
+            <DollarSign size={20} color="#fff" />
+          </div>
+          <div className="sales-kpi-content">
+            <div className="sales-kpi-value" style={{ color: KPI_COLORS.pink.text }}>{vms.length}</div>
+            <div className="sales-kpi-label">Total VPS</div>
+            <div className="sales-kpi-trend sales-trend-up">+{trendPct}% actifs</div>
+          </div>
+        </div>
+        <div className="sales-kpi-card" style={{ background: KPI_COLORS.orange.bg, borderColor: KPI_COLORS.orange.border }}>
+          <div className="sales-kpi-icon" style={{ background: KPI_COLORS.orange.icon }}>
+            <ShoppingCart size={20} color="#fff" />
+          </div>
+          <div className="sales-kpi-content">
+            <div className="sales-kpi-value" style={{ color: KPI_COLORS.orange.text }}>{activeCount}</div>
+            <div className="sales-kpi-label">VPS actifs</div>
+            <div className="sales-kpi-trend sales-trend-up">+{vms.length ? ((activeCount / vms.length) * 100).toFixed(0) : 0}% cette semaine</div>
+          </div>
+        </div>
+        <div className="sales-kpi-card" style={{ background: KPI_COLORS.green.bg, borderColor: KPI_COLORS.green.border }}>
+          <div className="sales-kpi-icon" style={{ background: KPI_COLORS.green.icon }}>
+            <Server size={20} color="#fff" />
+          </div>
+          <div className="sales-kpi-content">
+            <div className="sales-kpi-value" style={{ color: KPI_COLORS.green.text }}>{vms.length}</div>
+            <div className="sales-kpi-label">Machines</div>
+            <div className="sales-kpi-trend sales-trend-up">sur la plateforme</div>
+          </div>
+        </div>
+        <div className="sales-kpi-card" style={{ background: KPI_COLORS.purple.bg, borderColor: KPI_COLORS.purple.border }}>
+          <div className="sales-kpi-icon" style={{ background: KPI_COLORS.purple.icon }}>
+            <Users size={20} color="#fff" />
+          </div>
+          <div className="sales-kpi-content">
+            <div className="sales-kpi-value" style={{ color: KPI_COLORS.purple.text }}>{stoppedCount}</div>
+            <div className="sales-kpi-label">VPS arrêtés</div>
+            <div className="sales-kpi-trend">{stoppedCount > 0 ? 'En pause' : '—'}</div>
+          </div>
+        </div>
+      </div>
+
       <div className="dashboard-figma-grid">
         {/* Card 1: Revenue-style — VPS principal */}
         <div className="dashboard-figma-card dashboard-figma-card-revenue">
@@ -103,7 +160,7 @@ export default function ClientOverview() {
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                 <YAxis hide />
                 <Tooltip />
-                <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} name="Actifs" />
+                <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} name="Actifs" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -217,7 +274,7 @@ export default function ClientOverview() {
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                 <YAxis hide />
                 <Tooltip />
-                <Line type="monotone" dataKey="actifs" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} name="Actifs" />
+                <Line type="monotone" dataKey="actifs" stroke={CHART_COLORS[1]} strokeWidth={2.5} dot={false} name="Actifs" />
               </LineChart>
             </ResponsiveContainer>
           </div>

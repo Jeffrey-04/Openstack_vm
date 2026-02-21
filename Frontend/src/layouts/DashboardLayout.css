@@ -1,7 +1,8 @@
+/* Sales Dashboard theme: violet sidebar, colorful KPIs */
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
-  background: var(--bg-page, #f7f8fa);
+  background: #f1f5f9;
 }
 
 .dashboard-sidebar {
@@ -10,8 +11,8 @@
   top: 0;
   bottom: 0;
   width: 260px;
-  background: #fff;
-  border-right: 1px solid #e8e8ed;
+  background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
+  box-shadow: 4px 0 24px rgba(124, 58, 237, 0.25);
   display: flex;
   flex-direction: column;
   z-index: 100;
@@ -32,9 +33,13 @@
   overflow: hidden;
 }
 
+.dashboard-sidebar.collapsed .sidebar-pro-card {
+  display: none;
+}
+
 .sidebar-header {
   padding: 1.25rem;
-  border-bottom: 1px solid #e8e8ed;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .sidebar-brand {
@@ -42,13 +47,14 @@
   align-items: center;
   gap: 0.75rem;
   text-decoration: none;
-  color: #1a1a2e;
+  color: #fff;
   font-weight: 700;
   font-size: 1.1rem;
 }
 
 .sidebar-brand-icon {
   font-size: 1.5rem;
+  color: #fff;
 }
 
 .sidebar-nav {
@@ -63,19 +69,19 @@
   gap: 0.75rem;
   padding: 0.65rem 1rem;
   margin-bottom: 0.25rem;
-  border-radius: 8px;
-  color: #4a4a68;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
   transition: background 0.15s, color 0.15s;
 }
 
 .sidebar-item:hover {
-  background: #f0f0f5;
-  color: #1a1a2e;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
 
 .sidebar-item.active {
-  background: var(--primary, #6d28d9);
+  background: rgba(255, 255, 255, 0.25);
   color: #fff;
 }
 
@@ -84,15 +90,54 @@
   width: 1.25rem;
   text-align: center;
   font-size: 0.95rem;
+  color: inherit;
 }
 
 .sidebar-item-label {
   white-space: nowrap;
 }
 
+.sidebar-pro-card {
+  margin: 0.75rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.08) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.sidebar-pro-card-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 0.35rem 0;
+}
+
+.sidebar-pro-card-desc {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.85);
+  margin: 0 0 0.75rem 0;
+}
+
+.sidebar-pro-card-btn {
+  display: inline-block;
+  padding: 0.4rem 0.85rem;
+  background: #fff;
+  color: #7c3aed;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.sidebar-pro-card-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
 .sidebar-footer {
   padding: 1rem 1rem 1.25rem;
-  border-top: 1px solid #e8e8ed;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .sidebar-user {
@@ -107,7 +152,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--primary, #6d28d9);
+  background: rgba(255, 255, 255, 0.3);
   color: #fff;
   display: flex;
   align-items: center;
@@ -118,7 +163,7 @@
 
 .sidebar-user-name {
   font-size: 0.9rem;
-  color: #4a4a68;
+  color: rgba(255, 255, 255, 0.95);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -127,18 +172,18 @@
 .sidebar-logout {
   width: 100%;
   padding: 0.5rem 1rem;
-  background: transparent;
-  border: 1px solid #e8e8ed;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 8px;
-  color: #6b7280;
+  color: #fff;
   font-size: 0.9rem;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
 
 .sidebar-logout:hover {
-  background: #f0f0f5;
-  color: #1a1a2e;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
 }
 
 .dashboard-main {
@@ -204,22 +249,23 @@
 .topbar-search {
   width: 100%;
   padding: 0.5rem 1rem 0.5rem 2.5rem;
-  border: 1px solid #e8e8ed;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
   font-size: 0.9rem;
-  background: #f7f8fa;
-  color: #1a1a2e;
-  transition: background 0.15s, border-color 0.15s;
+  background: #fff;
+  color: #1e293b;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .topbar-search::placeholder {
-  color: #9ca3af;
+  color: #94a3b8;
 }
 
 .topbar-search:hover,
 .topbar-search:focus {
   background: #fff;
-  border-color: var(--primary, #6d28d9);
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
   outline: none;
 }
 
@@ -265,8 +311,9 @@
 }
 
 .breadcrumb-link {
-  color: var(--primary);
+  color: #7c3aed;
   text-decoration: none;
+  font-weight: 500;
 }
 
 .breadcrumb-link:hover {
@@ -285,15 +332,15 @@
 
 .topbar-title {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1a1a2e;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .topbar-subtitle {
   margin: 0.25rem 0 0 0;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .topbar-actions {
@@ -311,14 +358,15 @@
 }
 
 .topbar-btn-terminal {
-  background: #f0f0f5;
-  color: #4a4a68;
-  border: 1px solid #e8e8ed;
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #c4b5fd;
+  font-weight: 500;
 }
 
 .topbar-btn-terminal:hover {
-  background: #e8e8ed;
-  color: #1a1a2e;
+  background: #ddd6fe;
+  color: #5b21b6;
 }
 
 .topbar-user {
@@ -328,21 +376,29 @@
 }
 
 .topbar-user-avatar {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: #6c5ce7;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
 }
 
 .topbar-user-name {
   font-size: 0.9rem;
-  color: #4a4a68;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.topbar-user-role {
+  font-size: 0.75rem;
+  color: #64748b;
+  display: block;
+  margin-top: 0.1rem;
 }
 
 .dashboard-content {

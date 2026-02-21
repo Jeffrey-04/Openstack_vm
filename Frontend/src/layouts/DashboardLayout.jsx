@@ -123,6 +123,11 @@ export default function DashboardLayout({ type = 'client' }) {
             )
           )}
         </nav>
+        <div className="sidebar-pro-card">
+          <p className="sidebar-pro-card-title">VM Pro</p>
+          <p className="sidebar-pro-card-desc">Toutes les fonctionnalités avancées.</p>
+          <a href="/client/billing" className="sidebar-pro-card-btn">En savoir plus</a>
+        </div>
         <div className="sidebar-footer">
           <div className="sidebar-user">
             <span className="sidebar-user-avatar">
@@ -187,7 +192,10 @@ export default function DashboardLayout({ type = 'client' }) {
               <span className="topbar-user-avatar">
                 {user?.name?.[0] || user?.email?.[0] || '?'}
               </span>
-              <span className="topbar-user-name">{user?.name || user?.email || 'User'}</span>
+              <div>
+                <span className="topbar-user-name">{user?.name || user?.email || 'User'}</span>
+                <span className="topbar-user-role">{type === 'admin' ? 'Admin' : 'Client'}</span>
+              </div>
               <ChevronDown size={16} className="topbar-user-chevron" />
             </div>
           </div>
