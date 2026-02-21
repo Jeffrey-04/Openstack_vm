@@ -66,42 +66,50 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Console by DB id — MUST be before /:id routes so "console" is not captured as :id
+router.get('/console/by-db-id/:dbId', async (req, res, next) => {
+  const dbId = normalizeVmParam(req.params.dbId);
+  logger.info('Console by-db-id: request', { dbId: dbId || '(empty)', userId: req.userId });
+  try {
+    if (!dbId) {
+      logger.warn('Console by-db-id: missing dbId');
+      return res.status(400).json({ error: { message: 'dbId required', status: 400 } });
+    }
+    const vm = await VM.findOne({ where: { id: dbId, userId: req.userId } });
+    if (!vm) {
+      logger.warn('Console by-db-id: VM not found', { dbId, userId: req.userId });
+      return res.status(404).json({
+        error: { message: 'VM introuvable ou accès non autorisé.', status: 404, code: 'VM_NOT_FOUND' }
+      });
+    }
+    logger.info('Console by-db-id: VM found', { dbId, instanceId: vm.instanceId });
+    const projectId = req.user?.openstackProjectId || null;
+    const url = await openstack.getConsoleUrl(vm.instanceId, projectId);
+    if (!url) {
+      logger.warn('Console by-db-id: no URL from OpenStack', { instanceId: vm.instanceId });
+      return res.status(503).json({ error: { message: 'Console non disponible pour cette VM', status: 503 } });
+    }
+    logger.info('Console by-db-id: success', { dbId });
+    res.json({ success: true, url });
+  } catch (error) {
+    logger.error('Console by-db-id: exception', error.message, error.stack);
+    next(error);
+  }
+});
+
 // Scaling (must be before /:id to avoid "scaling-policy" as id)
 router.get('/:id/scaling-policy', scalingController.getScalingPolicy);
 router.put('/:id/scaling-policy', scalingController.putScalingPolicy);
 router.get('/:id/metrics', scalingController.getMetrics);
 router.get('/:id/scaling-history', scalingController.getScalingHistory);
 
-// Console by DB id (unambiguous: always use our VM primary key)
-router.get('/console/by-db-id/:dbId', async (req, res, next) => {
-  try {
-    const dbId = normalizeVmParam(req.params.dbId);
-    if (!dbId) {
-      return res.status(400).json({ error: { message: 'dbId required', status: 400 } });
-    }
-    const vm = await VM.findOne({ where: { id: dbId, userId: req.userId } });
-    if (!vm) {
-      return res.status(404).json({
-        error: { message: 'VM introuvable ou accès non autorisé.', status: 404, code: 'VM_NOT_FOUND' }
-      });
-    }
-    const projectId = req.user?.openstackProjectId || null;
-    const url = await openstack.getConsoleUrl(vm.instanceId, projectId);
-    if (!url) {
-      return res.status(503).json({ error: { message: 'Console non disponible pour cette VM', status: 503 } });
-    }
-    res.json({ success: true, url });
-  } catch (error) {
-    next(error);
-  }
-});
-
 router.get('/:id/console', async (req, res, next) => {
+  const paramId = normalizeVmParam(req.params.id);
+  logger.info('Console by-id: request', { paramId: paramId?.substring(0, 12) + '…', userId: req.userId });
   try {
-    const paramId = normalizeVmParam(req.params.id);
     const vm = await findVmByParam(paramId, req.userId);
     if (!vm) {
-      logger.warn('Console: VM not found', { paramId: paramId?.substring(0, 8) + '…', userId: req.userId?.substring(0, 8) + '…' });
+      logger.warn('Console by-id: VM not found', { paramId: paramId?.substring(0, 12), userId: req.userId });
       return res.status(404).json({
         error: {
           message: 'VM introuvable ou accès non autorisé. Rechargez la page détail.',
@@ -110,13 +118,17 @@ router.get('/:id/console', async (req, res, next) => {
         }
       });
     }
+    logger.info('Console by-id: VM found', { instanceId: vm.instanceId, dbId: vm.id });
     const projectId = req.user?.openstackProjectId || null;
     const url = await openstack.getConsoleUrl(vm.instanceId, projectId);
     if (!url) {
+      logger.warn('Console by-id: no URL from OpenStack', { instanceId: vm.instanceId });
       return res.status(503).json({ error: { message: 'Console non disponible pour cette VM', status: 503 } });
     }
+    logger.info('Console by-id: success');
     res.json({ success: true, url });
   } catch (error) {
+    logger.error('Console by-id: exception', error.message, error.stack);
     next(error);
   }
 });

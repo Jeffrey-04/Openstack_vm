@@ -422,9 +422,21 @@ function VMDetail() {
                 onClick={async () => {
                     setConsoleLoading(true);
                     try {
-                    const res = vm.dbId
-                      ? await apiService.getVmConsoleByDbId(vm.dbId)
-                      : await apiService.getVmConsole(vm.id || id);
+                    let res = null;
+                    const instanceId = vm.id || id;
+                    if (vm.dbId) {
+                      try {
+                        res = await apiService.getVmConsoleByDbId(vm.dbId);
+                      } catch (e) {
+                        if (e.response?.status === 404 && instanceId) {
+                          res = await apiService.getVmConsole(instanceId);
+                        } else {
+                          throw e;
+                        }
+                      }
+                    } else {
+                      res = await apiService.getVmConsole(instanceId);
+                    }
                     if (res?.url) window.open(res.url, '_blank', 'noopener,noreferrer');
                     else toast.error('Console non disponible');
                   } catch (e) {
