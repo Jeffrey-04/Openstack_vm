@@ -25,12 +25,21 @@ function generatePdf(invoiceData) {
       currency = 'XAF'
     } = invoiceData;
 
+    const formatDate = (d) => {
+      if (!d) return 'N/A';
+      if (typeof d === 'string') return d;
+      const date = d instanceof Date ? d : new Date(d);
+      return isNaN(date.getTime()) ? String(d) : date.toISOString().slice(0, 10);
+    };
+    const periodStartStr = formatDate(periodStart);
+    const periodEndStr = formatDate(periodEnd);
+
     doc.fontSize(20).text(`FACTURE N° ${invoiceNumber}`, { align: 'center' });
     doc.moveDown();
     doc.fontSize(10);
     doc.text(`Client: ${clientName || 'N/A'}`, { continued: false });
     doc.text(`Email: ${clientEmail || 'N/A'}`);
-    doc.text(`Période: ${periodStart} au ${periodEnd}`);
+    doc.text(`Période: ${periodStartStr} au ${periodEndStr}`);
     doc.moveDown(2);
 
     const tableTop = doc.y;

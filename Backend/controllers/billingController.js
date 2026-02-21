@@ -95,8 +95,11 @@ async function downloadInvoice(req, res, next) {
       periodEnd: invoice.periodEnd,
       items,
       totalAmount: Number(invoice.totalAmount),
-      currency: invoice.currency
+      currency: invoice.currency || 'XAF'
     });
+    if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+      return res.status(500).json({ error: { message: 'PDF generation failed', status: 500 } });
+    }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=facture_${invoice.invoiceNumber}.pdf`);
     res.send(pdfBuffer);

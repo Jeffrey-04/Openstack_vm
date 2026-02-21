@@ -123,10 +123,24 @@ export default function BillingPage() {
     try {
       const res = await apiService.downloadInvoicePdf(id);
       const blob = res.data;
-      const filename = res.headers['content-disposition']
-        ? res.headers['content-disposition'].replace(/.*filename=/, '').replace(/^["']|["']$/g, '') || `facture_${id}.pdf`
+      const contentType = (res.headers['content-type'] || '').toLowerCase();
+      if (res.status !== 200 || !contentType.includes('pdf')) {
+        const text = await blob.text();
+        let msg = 'Réponse invalide du serveur.';
+        try {
+          const json = JSON.parse(text);
+          msg = json.error?.message || msg;
+        } catch (_) {
+          if (text.length < 200) msg = text;
+        }
+        toast.error(msg);
+        return;
+      }
+      let filename = res.headers['content-disposition']
+        ? res.headers['content-disposition'].replace(/.*filename=/, '').trim().replace(/^["']|["']$/g, '') || `facture_${detail?.invoiceNumber || id}.pdf`
         : `facture_${detail?.invoiceNumber || id}.pdf`;
-      const url = URL.createObjectURL(blob);
+      if (!filename.toLowerCase().endsWith('.pdf')) filename = `${filename}.pdf`;
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
@@ -134,7 +148,17 @@ export default function BillingPage() {
       URL.revokeObjectURL(url);
       toast.success('Téléchargement démarré.');
     } catch (err) {
-      toast.error(err.response?.data?.error?.message || 'Erreur lors du téléchargement.');
+      let msg = 'Erreur lors du téléchargement.';
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          msg = json.error?.message || msg;
+        } catch (_) {}
+      } else if (err.response?.data?.error?.message) {
+        msg = err.response.data.error.message;
+      }
+      toast.error(msg);
     }
   };
 
