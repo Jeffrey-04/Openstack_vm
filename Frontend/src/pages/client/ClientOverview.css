@@ -334,3 +334,326 @@
   color: #6b7280;
   font-size: 0.95rem;
 }
+
+/* ——— Dashboard style Figma (grille cartes) ——— */
+.dashboard-figma {
+  padding: 0;
+  background: #f7f8fa;
+  min-height: 100%;
+}
+
+.dashboard-figma-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: auto auto;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-figma-grid .dashboard-figma-card-revenue { grid-column: 1; }
+.dashboard-figma-grid .dashboard-figma-card-donut { grid-column: 2; }
+.dashboard-figma-grid .dashboard-figma-card-rating { grid-column: 1; }
+.dashboard-figma-grid .dashboard-figma-card-list { grid-column: 2; }
+.dashboard-figma-grid .dashboard-figma-card-trend { grid-column: 1 / -1; }
+
+.dashboard-figma-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e8e8ed;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.dashboard-figma-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-figma-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-figma-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.dashboard-figma-link {
+  font-size: 0.85rem;
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.dashboard-figma-link:hover {
+  text-decoration: underline;
+}
+
+.dashboard-figma-metric {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1.2;
+}
+
+.dashboard-figma-trend {
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.dashboard-figma-trend-up { color: #059669; }
+.dashboard-figma-trend-down { color: #dc2626; }
+
+.dashboard-figma-period,
+.dashboard-figma-desc {
+  margin: 0.25rem 0 0.75rem 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.dashboard-figma-chart-wrap {
+  margin-top: 0.75rem;
+  min-height: 100px;
+}
+
+.dashboard-figma-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.dashboard-figma-legend-row {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.dashboard-figma-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dashboard-figma-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dashboard-figma-donut-wrap {
+  margin: 0.5rem 0;
+}
+
+.dashboard-figma-rating-row {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.dashboard-figma-rating-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px dashed #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb;
+}
+
+.dashboard-figma-rating-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.dashboard-figma-rating-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.dashboard-figma-ssh {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e8e8ed;
+}
+
+.dashboard-figma-card-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.dashboard-figma-ssh-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-figma-ssh-line {
+  font-size: 0.85rem;
+  background: #f5f5f9;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-figma-btn-copy {
+  padding: 0.35rem 0.75rem;
+  background: #f0f0f5;
+  border: 1px solid #e8e8ed;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: #4a4a68;
+}
+
+.dashboard-figma-btn-copy:hover {
+  background: #e8e8ed;
+}
+
+.dashboard-figma-list {
+  list-style: none;
+  margin: 0.5rem 0 0 0;
+  padding: 0;
+}
+
+.dashboard-figma-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f0f5;
+}
+
+.dashboard-figma-list-item:last-child {
+  border-bottom: none;
+}
+
+.dashboard-figma-list-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #6366f1;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.dashboard-figma-list-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dashboard-figma-list-name {
+  font-weight: 500;
+  color: #1a1a2e;
+}
+
+.dashboard-figma-list-meta {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.dashboard-figma-list-link {
+  font-size: 0.85rem;
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.dashboard-figma-list-link:hover {
+  text-decoration: underline;
+}
+
+.dashboard-figma-list-empty {
+  padding: 1rem 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.dashboard-figma-card-footer-link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.dashboard-figma-card-footer-link:hover {
+  text-decoration: underline;
+}
+
+.dashboard-figma-cta {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  border: 1px solid #e8e8ed;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.dashboard-figma-cta h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: #1a1a2e;
+}
+
+.dashboard-figma-cta p {
+  margin: 0 0 1.25rem 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.dashboard-figma-btn-primary {
+  display: inline-block;
+  padding: 0.6rem 1.25rem;
+  background: #6366f1;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.dashboard-figma-btn-primary:hover {
+  background: #4f46e5;
+}
+
+@media (max-width: 900px) {
+  .dashboard-figma-grid {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-figma-grid .dashboard-figma-card-revenue,
+  .dashboard-figma-grid .dashboard-figma-card-donut,
+  .dashboard-figma-grid .dashboard-figma-card-rating,
+  .dashboard-figma-grid .dashboard-figma-card-list,
+  .dashboard-figma-grid .dashboard-figma-card-trend {
+    grid-column: 1;
+  }
+}

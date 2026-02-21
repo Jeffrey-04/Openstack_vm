@@ -1,3 +1,115 @@
+/* Réutilisation style Figma (aligné ClientOverview) */
+.admin-dashboard-figma.dashboard-figma {
+  padding: 0;
+  background: #f7f8fa;
+  min-height: 100%;
+}
+
+.admin-dashboard-figma .dashboard-figma-grid {
+  display: grid;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-dashboard-figma-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.admin-dashboard-figma-quick {
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 1rem;
+}
+
+.admin-dashboard-figma .dashboard-figma-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e8e8ed;
+}
+
+.admin-dashboard-figma .dashboard-figma-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.admin-dashboard-figma .dashboard-figma-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.admin-dashboard-figma .dashboard-figma-link {
+  font-size: 0.85rem;
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.admin-dashboard-figma .dashboard-figma-link:hover {
+  text-decoration: underline;
+}
+
+.admin-dashboard-figma .dashboard-figma-metric {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.admin-dashboard-figma .dashboard-figma-period {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.admin-dashboard-figma .dashboard-figma-trend {
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.admin-dashboard-figma .dashboard-figma-trend-up { color: #059669; }
+.admin-dashboard-figma .dashboard-figma-trend-down { color: #dc2626; }
+
+.admin-figma-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-figma-table-card {
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.admin-figma-table-card .admin-table-wrap {
+  border-top: 1px solid #e8e8ed;
+}
+
+.admin-figma-quick-stat .dashboard-figma-card-title {
+  margin-bottom: 0.35rem;
+}
+
+.admin-figma-table-skeleton {
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 1100px) {
+  .admin-dashboard-figma-grid,
+  .admin-dashboard-figma-quick {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-dashboard-figma-grid,
+  .admin-dashboard-figma-quick {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-dashboard {
   padding: 0;
   background: #f5f5f9;
@@ -388,6 +500,12 @@
 
 .admin-btn-icon:hover {
   background: #f0f0f5;
+}
+
+.admin-action-buttons a.admin-btn-icon {
+  text-decoration: none;
+  color: #4a4a68;
+  font-size: 0.9rem;
 }
 
 .admin-table-empty {

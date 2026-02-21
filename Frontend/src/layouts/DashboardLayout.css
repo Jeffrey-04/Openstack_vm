@@ -163,6 +163,7 @@
   position: sticky;
   top: 0;
   z-index: 50;
+  flex-wrap: wrap;
 }
 
 .topbar-menu-toggle {
@@ -177,6 +178,85 @@
 
 .topbar-breadcrumb {
   flex: 1;
+  min-width: 0;
+}
+
+.topbar-breadcrumb-left {
+  max-width: 280px;
+}
+
+.topbar-search-wrap {
+  flex: 1;
+  max-width: 400px;
+  min-width: 160px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.topbar-search-icon {
+  position: absolute;
+  left: 12px;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.topbar-search {
+  width: 100%;
+  padding: 0.5rem 1rem 0.5rem 2.5rem;
+  border: 1px solid #e8e8ed;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #f7f8fa;
+  color: #1a1a2e;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.topbar-search::placeholder {
+  color: #9ca3af;
+}
+
+.topbar-search:hover,
+.topbar-search:focus {
+  background: #fff;
+  border-color: var(--primary, #6d28d9);
+  outline: none;
+}
+
+.topbar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #4a4a68;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.topbar-icon-btn:hover {
+  background: #f0f0f5;
+  color: #1a1a2e;
+}
+
+.topbar-user-dropdown {
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.topbar-user-dropdown:hover {
+  background: #f0f0f5;
+}
+
+.topbar-user-chevron {
+  color: #9ca3af;
+  flex-shrink: 0;
 }
 
 .breadcrumb {
@@ -283,6 +363,14 @@
   display: block;
 }
 
+@media (max-width: 968px) {
+  .topbar-search-wrap {
+    order: 3;
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-content {
     padding: 1rem;
@@ -309,12 +397,20 @@
     display: block;
   }
 
+  .topbar-breadcrumb-left {
+    max-width: none;
+  }
+
   .topbar-title {
     font-size: 1.1rem;
   }
 
   .topbar-subtitle {
     font-size: 0.8rem;
+  }
+
+  .topbar-search-wrap {
+    display: none;
   }
 }
 

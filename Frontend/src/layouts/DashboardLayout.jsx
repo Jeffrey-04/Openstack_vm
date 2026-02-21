@@ -11,7 +11,10 @@ import {
   TrendingUp,
   Users,
   Cloud,
-  Menu
+  Menu,
+  Search,
+  Bell,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './DashboardLayout.css';
@@ -27,7 +30,10 @@ const ICON_MAP = {
   TrendingUp,
   Users,
   Cloud,
-  Menu
+  Menu,
+  Search,
+  Bell,
+  ChevronDown,
 };
 
 const CLIENT_SIDEBAR_ITEMS = [
@@ -140,7 +146,7 @@ export default function DashboardLayout({ type = 'client' }) {
           >
             <Menu size={24} />
           </button>
-          <div className="topbar-breadcrumb">
+          <div className="topbar-breadcrumb topbar-breadcrumb-left">
             <nav className="breadcrumb" aria-label="Fil d'Ariane">
               {breadcrumbItems.map((item, i) => (
                 <span key={item.path}>
@@ -156,6 +162,15 @@ export default function DashboardLayout({ type = 'client' }) {
             <h1 className="topbar-title">{title}</h1>
             {subtitle && <p className="topbar-subtitle">{subtitle}</p>}
           </div>
+          <div className="topbar-search-wrap">
+            <Search size={18} className="topbar-search-icon" />
+            <input
+              type="search"
+              className="topbar-search"
+              placeholder="Rechercher"
+              aria-label="Rechercher"
+            />
+          </div>
           <div className="topbar-actions">
             <a
               href="/dashboard"
@@ -165,11 +180,15 @@ export default function DashboardLayout({ type = 'client' }) {
             >
               Terminal
             </a>
-            <div className="topbar-user">
+            <button type="button" className="topbar-icon-btn" aria-label="Notifications">
+              <Bell size={20} />
+            </button>
+            <div className="topbar-user topbar-user-dropdown">
               <span className="topbar-user-avatar">
                 {user?.name?.[0] || user?.email?.[0] || '?'}
               </span>
               <span className="topbar-user-name">{user?.name || user?.email || 'User'}</span>
+              <ChevronDown size={16} className="topbar-user-chevron" />
             </div>
           </div>
         </header>
