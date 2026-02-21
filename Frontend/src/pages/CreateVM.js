@@ -40,6 +40,20 @@ function CreateVM() {
     loadResources();
   }, []);
 
+  /* Quand on arrive depuis le marketplace avec un flavor choisi, préremplir le formulaire "Sur mesure" */
+  useEffect(() => {
+    if (!selectedFlavorFromMarketplace) return;
+    const f = selectedFlavorFromMarketplace;
+    setFormData(prev => ({
+      ...prev,
+      flavorRef: f.id || prev.flavorRef,
+      vcpus: f.vcpus != null ? Number(f.vcpus) : prev.vcpus,
+      ramGb: f.ram != null ? Math.round(Number(f.ram) / 1024) || prev.ramGb : prev.ramGb,
+      diskGb: f.disk != null ? Number(f.disk) : prev.diskGb,
+    }));
+    setMode(VM_MODE_CUSTOM);
+  }, [selectedFlavorFromMarketplace]);
+
   const loadResources = async () => {
     try {
       setLoading(true);

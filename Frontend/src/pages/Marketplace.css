@@ -47,9 +47,9 @@
 
 .marketplace-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
   align-items: start;
 }
@@ -175,6 +175,16 @@
   margin: 0;
   font-size: 0.9rem;
   color: rgba(255,255,255,0.95);
+}
+
+.marketplace-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  background: rgba(255,255,255,0.2);
+  border-radius: 12px;
+  color: #fff;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 @media (max-width: 900px) {

@@ -36,49 +36,8 @@ function Marketplace() {
     return `${Number(price).toLocaleString('fr-FR')} FCFA`;
   };
 
-  /* Design image 1: 3 plans type Basic / Developer / Advanced. On mappe les flavors sur 3 cartes; si plus de 3, on prend les 3 premiers ou on crée des paliers. */
-  const planBasic = flavors[0] || { name: 'Basic', ram: 1024, vcpus: 1, disk: 25, price: 5000 };
-  const planDeveloper = flavors[1] || flavors[0] || { name: 'Developer', ram: 5120, vcpus: 2, disk: 256, price: 15000 };
-  const planAdvanced = flavors[2] || flavors[1] || flavors[0] || { name: 'Advanced', ram: 25600, vcpus: 4, disk: 1024, price: 45000 };
-
-  const plans = [
-    {
-      id: planBasic.id || 'basic',
-      name: 'Basic',
-      description: 'Idéal pour les projets légers et les tests.',
-      price: planBasic.price,
-      ram: planBasic.ram,
-      storage: planBasic.disk,
-      ssd: Math.min(planBasic.disk || 10, 10),
-      support: '1 an',
-      flavor: planBasic,
-      mostUsed: false,
-    },
-    {
-      id: planDeveloper.id || 'developer',
-      name: 'Developer',
-      description: 'Équilibre parfait pour le développement et les petites applications.',
-      price: planDeveloper.price,
-      ram: planDeveloper.ram,
-      storage: planDeveloper.disk,
-      ssd: Math.min(planDeveloper.disk || 100, 100),
-      support: 'Support à vie',
-      flavor: planDeveloper,
-      mostUsed: true,
-    },
-    {
-      id: planAdvanced.id || 'advanced',
-      name: 'Advanced',
-      description: 'Pour les applications exigeantes et la production.',
-      price: planAdvanced.price,
-      ram: planAdvanced.ram,
-      storage: planAdvanced.disk,
-      ssd: Math.min(planAdvanced.disk || 240, 240),
-      support: 'Support à vie',
-      flavor: planAdvanced,
-      mostUsed: false,
-    },
-  ];
+  /* Badge "Le plus utilisé" sur le 2e flavor s'il y en a au moins 2 */
+  const mostUsedIndex = flavors.length >= 2 ? 1 : -1;
 
   if (loading) {
     return (
@@ -102,33 +61,45 @@ function Marketplace() {
     );
   }
 
+  if (flavors.length === 0) {
+    return (
+      <div className="marketplace-wrap">
+        <div className="marketplace-empty">
+          <p>Aucune configuration disponible pour le moment.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="marketplace-wrap">
       <div className="marketplace-cards">
-        {plans.map((plan) => (
-          <div key={plan.id} className="marketplace-card">
-            {plan.mostUsed && (
+        {flavors.map((flavor, index) => (
+          <div key={flavor.id} className="marketplace-card">
+            {index === mostUsedIndex && (
               <div className="marketplace-card-badge">Le plus utilisé</div>
             )}
-            <h3 className="marketplace-card-title">{plan.name}</h3>
-            <p className="marketplace-card-desc">{plan.description}</p>
+            <h3 className="marketplace-card-title">{flavor.name}</h3>
+            <p className="marketplace-card-desc">
+              {flavor.description || `${formatRAM(flavor.ram)} RAM, ${flavor.vcpus || 0} vCPU — Idéal pour vos projets.`}
+            </p>
             <div className="marketplace-price-wrap">
-              <span className="marketplace-price-main">{formatPriceFCFA(plan.price).replace(/\sFCFA$/, '')}</span>
+              <span className="marketplace-price-main">{formatPriceFCFA(flavor.price).replace(/\sFCFA$/, '')}</span>
               <span className="marketplace-price-decimal"> FCFA</span>
             </div>
             <p className="marketplace-price-period">Par mois</p>
             <ul className="marketplace-features">
-              <li>{formatRAM(plan.ram)} RAM</li>
-              <li>{plan.storage} GB Stockage</li>
-              <li>{plan.ssd} GB SSD</li>
-              <li>{plan.support} Support</li>
+              <li>{formatRAM(flavor.ram)} RAM</li>
+              <li>{flavor.vcpus || '—'} vCPU</li>
+              <li>{flavor.disk != null ? `${flavor.disk} GB` : '—'} disque</li>
+              <li>Support inclus</li>
             </ul>
             <Link
               to="/client/create"
-              state={{ selectedFlavor: plan.flavor }}
+              state={{ selectedFlavor: flavor }}
               className="marketplace-btn-buy"
             >
-              Acheter
+              Créer avec cette config
             </Link>
           </div>
         ))}
