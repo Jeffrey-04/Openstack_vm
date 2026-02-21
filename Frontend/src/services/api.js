@@ -236,6 +236,13 @@ export const apiService = {
   getInvoiceDownloadUrl(id) {
     return `${API.ENDPOINTS.INVOICE_DOWNLOAD(id)}?token=${getToken()}`;
   },
+  /** Download invoice PDF (uses Authorization header, no token in URL). */
+  async downloadInvoicePdf(id) {
+    const response = await axiosInstance.get(API.ENDPOINTS.INVOICE_DOWNLOAD(id), {
+      responseType: 'blob'
+    });
+    return response;
+  },
   async payInvoice(id) {
     const response = await axiosInstance.post(API.ENDPOINTS.INVOICE_PAY(id));
     return response.data;

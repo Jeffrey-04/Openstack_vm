@@ -119,9 +119,23 @@ export default function BillingPage() {
     }
   };
 
-  const handleDownload = (id) => {
-    const url = apiService.getInvoiceDownloadUrl(id);
-    window.open(url, '_blank');
+  const handleDownload = async (id) => {
+    try {
+      const res = await apiService.downloadInvoicePdf(id);
+      const blob = res.data;
+      const filename = res.headers['content-disposition']
+        ? res.headers['content-disposition'].replace(/.*filename=/, '').replace(/^["']|["']$/g, '') || `facture_${id}.pdf`
+        : `facture_${detail?.invoiceNumber || id}.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Téléchargement démarré.');
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Erreur lors du téléchargement.');
+    }
   };
 
   const handlePay = async (id) => {

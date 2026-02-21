@@ -6,6 +6,13 @@ const logger = require('../utils/logger');
 const DEFAULT_CURRENCY = 'XAF';
 const SLICE_MINUTES = 30;
 
+/**
+ * Facturation par tranche de 30 min (slice).
+ * Montant = durationHours × ( vcpus × cpuPerHour + ramGb × ramPerGbHour + diskGb × storagePerGbHour ).
+ * Tarifs par défaut (table pricing_rules, modifiables en admin) : cpu 200 XAF/vCPU/h, ram 50 XAF/GB/h, storage 0.01 XAF/GB/h.
+ * Ex. 30 min (0,5 h), 1 vCPU, 1 GB RAM, 20 GB disque : 0,5 × (200 + 50 + 0,2) = 125,1 XAF.
+ */
+
 async function getPricingRules(effectiveDate = new Date()) {
   const dateStr = effectiveDate.toISOString().slice(0, 10);
   const rules = await PricingRule.findAll({
@@ -22,8 +29,8 @@ async function getPricingRules(effectiveDate = new Date()) {
 function calculateConsumptionCost(metrics, pricingRules) {
   const breakdown = {};
   let total = 0;
-  const cpuPerHour = Number(pricingRules.cpu?.unitPrice ?? 10);
-  const ramPerGbHour = Number(pricingRules.ram?.unitPrice ?? 2);
+  const cpuPerHour = Number(pricingRules.cpu?.unitPrice ?? 200);
+  const ramPerGbHour = Number(pricingRules.ram?.unitPrice ?? 50);
   const storagePerGbMonth = Number(pricingRules.storage?.unitPrice ?? 0.5);
   const uptimeHours = Number(metrics.uptimeHours ?? 0);
   const cpuUtil = Number(metrics.cpu_util ?? 0) / 100;
@@ -46,8 +53,8 @@ function calculateHourlyCost(metrics, pricingRules) {
   const vcpus = Number(metrics.vcpus ?? 1);
   const ramGb = Number(metrics.ram_gb ?? 0);
   const diskGb = Number(metrics.disk_gb ?? 0);
-  const cpuPerHour = Number(pricingRules.cpu?.unitPrice ?? 10);
-  const ramPerGbHour = Number(pricingRules.ram?.unitPrice ?? 2);
+  const cpuPerHour = Number(pricingRules.cpu?.unitPrice ?? 200);
+  const ramPerGbHour = Number(pricingRules.ram?.unitPrice ?? 50);
   const storagePerGbHour = Number(pricingRules.storage?.unitPrice ?? 0.01);
   const total =
     uptimeHours * (
@@ -136,8 +143,8 @@ async function getFlavorSpecs(flavorId) {
 async function calculateSliceAmount(flavorId, durationHours) {
   const rules = await getPricingRules(new Date());
   const specs = await getFlavorSpecs(flavorId);
-  const cpuPerHour = Number(rules.cpu?.unitPrice ?? 10);
-  const ramPerGbHour = Number(rules.ram?.unitPrice ?? 2);
+  const cpuPerHour = Number(rules.cpu?.unitPrice ?? 200);
+  const ramPerGbHour = Number(rules.ram?.unitPrice ?? 50);
   const storagePerGbHour = Number(rules.storage?.unitPrice ?? 0.01);
   const ramGb = specs.ramMb / 1024;
   const total =
