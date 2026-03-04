@@ -52,7 +52,7 @@ Si votre déploiement OpenStack expose une console noVNC, l’accès se fait en 
 ### Incohérences à éviter
 
 - **Flavor de base** : la politique doit avoir un `baseFlavorId` cohérent avec le flavor actuel de la VM avant tout scale up ; sinon le scale down peut viser un mauvais flavor. À la création ou mise à jour de la politique, si `baseFlavorId` n’est pas fourni, il est fixé au flavor actuel de la VM.
-- **Cooldown** : entre deux scale (up ou down), un cooldown est appliqué (par défaut 5 min, configurable via `cooldownMinutes` sur la politique) pour éviter les aller-retours.
+- **Cooldown** : entre deux scnale (up ou down), un cooldown est appliqué (par défaut 5 min, configurable via `cooldownMinutes` sur la politique) pour éviter les aller-retours.
 - **Droits** : les routes scaling (politique, métriques, historique) sont protégées et vérifient que la VM appartient à l’utilisateur (`ensureVmOwnership`).
 
 ### Facturation et scale en milieu de tranche (prorata)
