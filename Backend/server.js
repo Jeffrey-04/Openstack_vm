@@ -65,6 +65,7 @@ const invoicesRoutes = require('./routes/invoices');
 const pricingRulesRoutes = require('./routes/pricingRules');
 const adminRoutes = require('./routes/admin');
 const vmTemplatesRoutes = require('./routes/vmTemplates');
+const notificationsRoutes = require('./routes/notifications');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/openstack', openstackRoutes);
@@ -74,6 +75,7 @@ app.use('/api/flavors', flavorRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/pricing-rules', pricingRulesRoutes);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health check endpoint

@@ -265,6 +265,20 @@ export const apiService = {
     return response.data;
   },
 
+  // Notifications
+  async getNotifications() {
+    const response = await axiosInstance.get(API.ENDPOINTS.NOTIFICATIONS);
+    return response.data;
+  },
+  async markNotificationRead(id) {
+    const response = await axiosInstance.patch(API.ENDPOINTS.NOTIFICATION_READ(id));
+    return response.data;
+  },
+  async markAllNotificationsRead() {
+    const response = await axiosInstance.patch(API.ENDPOINTS.NOTIFICATIONS_READ_ALL);
+    return response.data;
+  },
+
   // Admin
   async getAdminVmTemplates() {
     const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_VM_TEMPLATES);

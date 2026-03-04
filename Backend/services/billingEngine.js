@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { ResourceUsage, PricingRule, VM, VmRuntime, Invoice, InvoiceItem, UsageSlice, User, PaymentMethod, ScalingEvent } = require('../models');
+const { createNotification } = require('./notificationService');
 const openstack = require('../config/openstack');
 const logger = require('../utils/logger');
 
@@ -318,6 +319,12 @@ async function runBillingJobForSlice(sliceEnd) {
         total: Math.round(s.amount * 100) / 100
       });
     }
+    await createNotification(userId, {
+      type: 'invoice',
+      title: 'Nouvelle facture',
+      message: `Facture ${invoice.invoiceNumber} : ${Number(invoice.totalAmount).toLocaleString('fr-FR')} ${invoice.currency}`,
+      link: '/client/billing'
+    });
     invoicesCreated += 1;
   }
   if (invoicesCreated > 0) {

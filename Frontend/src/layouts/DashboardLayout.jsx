@@ -108,6 +108,9 @@ export default function DashboardLayout({ type = 'client' }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifUnreadCount, setNotifUnreadCount] = useState(0);
+  const [notifLoading, setNotifLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -142,6 +145,49 @@ export default function DashboardLayout({ type = 'client' }) {
     document.addEventListener('click', close);
     return () => document.removeEventListener('click', close);
   }, []);
+
+  const loadNotifications = useCallback(async () => {
+    setNotifLoading(true);
+    try {
+      const res = await apiService.getNotifications();
+      setNotifications(res.notifications || []);
+      setNotifUnreadCount(res.unreadCount ?? 0);
+    } catch {
+      setNotifications([]);
+      setNotifUnreadCount(0);
+    } finally {
+      setNotifLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    if (notifOpen) loadNotifications();
+  }, [notifOpen, loadNotifications]);
+
+  useEffect(() => {
+    const interval = setInterval(loadNotifications, 45000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
+
+  const handleMarkNotifRead = async (id) => {
+    try {
+      await apiService.markNotificationRead(id);
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n)));
+      setNotifUnreadCount((c) => Math.max(0, c - 1));
+    } catch (_) {}
+  };
+
+  const handleMarkAllNotifsRead = async () => {
+    try {
+      await apiService.markAllNotificationsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, readAt: n.readAt || new Date().toISOString() })));
+      setNotifUnreadCount(0);
+    } catch (_) {}
+  };
 
   const loadSearchCache = useCallback(async () => {
     if (searchCacheRef.current) return;
@@ -317,16 +363,57 @@ export default function DashboardLayout({ type = 'client' }) {
             <div className="topbar-notif-wrap" ref={notifWrapRef}>
               <button
                 type="button"
-                className="topbar-icon-btn"
+                className="topbar-icon-btn topbar-notif-btn"
                 aria-label="Notifications"
                 aria-expanded={notifOpen}
                 onClick={() => { setNotifOpen((o) => !o); setUserMenuOpen(false); }}
               >
                 <Bell size={20} />
+                {notifUnreadCount > 0 && (
+                  <span className="topbar-notif-badge" aria-hidden="true">{notifUnreadCount > 99 ? '99+' : notifUnreadCount}</span>
+                )}
               </button>
               {notifOpen && (
                 <div className="topbar-dropdown topbar-dropdown-notif" role="menu">
-                  <p className="topbar-dropdown-empty">Aucune notification</p>
+                  <div className="topbar-notif-header">
+                    <span>Notifications</span>
+                    {notifications.some((n) => !n.readAt) && (
+                      <button type="button" className="topbar-notif-read-all" onClick={handleMarkAllNotifsRead}>
+                        Tout marquer lu
+                      </button>
+                    )}
+                  </div>
+                  {notifLoading && notifications.length === 0 ? (
+                    <p className="topbar-dropdown-empty">Chargement...</p>
+                  ) : notifications.length === 0 ? (
+                    <p className="topbar-dropdown-empty">Aucune notification</p>
+                  ) : (
+                    <ul className="topbar-notif-list">
+                      {notifications.map((n) => (
+                        <li key={n.id}>
+                          {n.link ? (
+                            <Link
+                              to={n.link}
+                              className={`topbar-notif-item ${!n.readAt ? 'topbar-notif-unread' : ''}`}
+                              onClick={() => { handleMarkNotifRead(n.id); setNotifOpen(false); }}
+                            >
+                              <span className="topbar-notif-item-title">{n.title}</span>
+                              {n.message && <span className="topbar-notif-item-msg">{n.message}</span>}
+                            </Link>
+                          ) : (
+                            <button
+                              type="button"
+                              className={`topbar-notif-item ${!n.readAt ? 'topbar-notif-unread' : ''}`}
+                              onClick={() => handleMarkNotifRead(n.id)}
+                            >
+                              <span className="topbar-notif-item-title">{n.title}</span>
+                              {n.message && <span className="topbar-notif-item-msg">{n.message}</span>}
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
             </div>

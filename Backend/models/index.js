@@ -14,6 +14,7 @@ const VMTemplate = require('./VMTemplate');
 const GlobalScaleUpRule = require('./GlobalScaleUpRule');
 const PaymentMethod = require('./PaymentMethod');
 const UsageSlice = require('./UsageSlice');
+const Notification = require('./Notification');
 
 // Associations
 User.hasMany(VM, { foreignKey: 'userId' });
@@ -37,6 +38,9 @@ UsageSlice.belongsTo(User, { foreignKey: 'userId' });
 Invoice.hasMany(UsageSlice, { foreignKey: 'invoiceId' });
 UsageSlice.belongsTo(Invoice, { foreignKey: 'invoiceId' });
 
+User.hasMany(Notification, { foreignKey: 'userId' });
+Notification.belongsTo(User, { foreignKey: 'userId' });
+
 const models = {
   User,
   VM,
@@ -50,7 +54,8 @@ const models = {
   VMTemplate,
   GlobalScaleUpRule,
   PaymentMethod,
-  UsageSlice
+  UsageSlice,
+  Notification
 };
 
 // alter: true on SQLite can fail when changing columns (backup table gets UNIQUE violation
@@ -93,5 +98,6 @@ module.exports = {
   VMTemplate,
   GlobalScaleUpRule,
   PaymentMethod,
-  UsageSlice
+  UsageSlice,
+  Notification
 };
