@@ -124,7 +124,23 @@ router.get('/console/by-db-id/:dbId', async (req, res, next) => {
     }
     logger.info('[Console] by-db-id: VM found', { dbId: vm.id, instanceId: vm.instanceId });
     const projectId = req.user?.openstackProjectId || null;
-    const url = await openstack.getConsoleUrl(vm.instanceId, projectId);
+    let url;
+    try {
+      url = await openstack.getConsoleUrl(vm.instanceId, projectId);
+    } catch (osErr) {
+      const status = osErr.response?.status;
+      if (status === 404) {
+        logger.warn('Console by-db-id: OpenStack 404 (noVNC/remote-consoles non disponible)', { instanceId: vm.instanceId });
+        return res.status(503).json({
+          error: {
+            message: 'Console non disponible pour cette VM. Le service noVNC n\'est peut-être pas configuré sur ce déploiement OpenStack.',
+            status: 503,
+            code: 'CONSOLE_UNAVAILABLE'
+          }
+        });
+      }
+      throw osErr;
+    }
     if (!url) {
       logger.warn('Console by-db-id: no URL from OpenStack', { instanceId: vm.instanceId });
       return res.status(503).json({ error: { message: 'Console non disponible pour cette VM', status: 503 } });
@@ -160,7 +176,23 @@ router.get('/:id/console', async (req, res, next) => {
     }
     logger.info('[Console] by-id: VM found', { instanceId: vm.instanceId, dbId: vm.id });
     const projectId = req.user?.openstackProjectId || null;
-    const url = await openstack.getConsoleUrl(vm.instanceId, projectId);
+    let url;
+    try {
+      url = await openstack.getConsoleUrl(vm.instanceId, projectId);
+    } catch (osErr) {
+      const status = osErr.response?.status;
+      if (status === 404) {
+        logger.warn('Console by-id: OpenStack 404 (noVNC/remote-consoles non disponible)', { instanceId: vm.instanceId });
+        return res.status(503).json({
+          error: {
+            message: 'Console non disponible pour cette VM. Le service noVNC n\'est peut-être pas configuré sur ce déploiement OpenStack.',
+            status: 503,
+            code: 'CONSOLE_UNAVAILABLE'
+          }
+        });
+      }
+      throw osErr;
+    }
     if (!url) {
       logger.warn('Console by-id: no URL from OpenStack', { instanceId: vm.instanceId });
       return res.status(503).json({ error: { message: 'Console non disponible pour cette VM', status: 503 } });

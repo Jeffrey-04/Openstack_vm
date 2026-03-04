@@ -346,12 +346,21 @@
 .topbar-user-dropdown {
   cursor: pointer;
   padding: 0.35rem 0.5rem;
+  border: none;
   border-radius: 8px;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
   transition: background 0.15s;
 }
 
 .topbar-user-dropdown:hover {
   background: #f0f0f5;
+}
+
+.topbar-user-dropdown:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 .topbar-user-chevron {
@@ -489,6 +498,9 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .topbar-user-avatar {

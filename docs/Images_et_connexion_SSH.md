@@ -77,6 +77,20 @@ Vous récupérez un **ID d’image** (UUID). C’est cet ID qui doit être utili
 
 ---
 
+## Console noVNC (optionnel)
+
+Le bouton **« Accéder à la console »** sur la page détail VM appelle l’API Nova `remote-consoles` (noVNC). Si OpenStack renvoie **404**, l’application affiche désormais un message clair : *« Console non disponible pour cette VM. Le service noVNC n’est peut-être pas configuré sur ce déploiement OpenStack. »* (réponse 503).
+
+### Activer la console noVNC sur DevStack
+
+- Vérifier que le service **nova-novncproxy** tourne (ou équivalent selon votre DevStack).
+- Dans `local.conf` DevStack, s’assurer que les options console sont activées (ex. `enable_service n-novnc` si applicable).
+- L’URL Nova pour les consoles doit être joignable depuis le backend (même réseau ou résolution DNS).
+
+Si noVNC n’est pas disponible, les utilisateurs peuvent continuer à utiliser **SSH** avec l’IP affichée sur la page détail VM.
+
+---
+
 ## Résumé
 
 | Besoin | Action |
