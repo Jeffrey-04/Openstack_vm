@@ -120,8 +120,13 @@ router.delete('/vm-templates/:id', async (req, res, next) => {
 // ---------- Admin Stats ----------
 router.get('/stats', adminController.getStats);
 
+// ---------- Admin VMs (toutes les VMs plateforme) ----------
+router.get('/vms', adminController.listAllVms);
+router.post('/vms/:id/action', adminController.vmAction);
+
 // ---------- Admin Users ----------
 router.get('/users', adminController.listUsers);
+router.patch('/users/:id', adminController.updateUser);
 
 // ---------- Admin Invoices (all invoices with filters) ----------
 router.get('/invoices', billingController.listAdminInvoices);

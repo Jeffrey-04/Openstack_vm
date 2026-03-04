@@ -7,6 +7,14 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 const VM_MODE_TEMPLATE = 'template';
 const VM_MODE_CUSTOM = 'custom';
 
+const DEFAULT_CPU_XAF_PER_H = 200;
+const DEFAULT_RAM_XAF_PER_GB_H = 50;
+const DEFAULT_DISK_XAF_PER_GB_H = 0.01;
+
+function estimateHourlyXAF(vcpus, ramGb, diskGb) {
+  return (vcpus || 0) * DEFAULT_CPU_XAF_PER_H + (ramGb || 0) * DEFAULT_RAM_XAF_PER_GB_H + (diskGb || 0) * DEFAULT_DISK_XAF_PER_GB_H;
+}
+
 function CreateVM() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -165,6 +173,31 @@ function CreateVM() {
   const getSelectedImage = () => {
     return images.find(i => i.id === formData.imageRef);
   };
+
+  const estimatedHourly = (() => {
+    if (mode === VM_MODE_TEMPLATE && formData.templateId) {
+      const t = getSelectedTemplate();
+      if (!t?.flavorId) return null;
+      const f = flavors.find(fl => fl.id === t.flavorId);
+      if (!f) return null;
+      const vcpus = f.vcpus || 1;
+      const ramGb = (f.ram || 512) / 1024;
+      const diskGb = f.disk || 20;
+      return Math.round(estimateHourlyXAF(vcpus, ramGb, diskGb));
+    }
+    if (mode === VM_MODE_CUSTOM) {
+      return Math.round(estimateHourlyXAF(formData.vcpus, formData.ramGb, formData.diskGb));
+    }
+    if (formData.flavorRef && mode !== VM_MODE_TEMPLATE) {
+      const f = getSelectedFlavor();
+      if (!f) return null;
+      const vcpus = f.vcpus || 1;
+      const ramGb = (f.ram || 512) / 1024;
+      const diskGb = f.disk || 20;
+      return Math.round(estimateHourlyXAF(vcpus, ramGb, diskGb));
+    }
+    return null;
+  })();
 
   const formatRAM = (ram) => {
     if (ram >= 1024) {
@@ -374,6 +407,15 @@ function CreateVM() {
                 </div>
               )}
             </div>
+
+            {estimatedHourly != null && (
+              <div className="create-vm-estimate" style={{ marginTop: '1.25rem', padding: '0.75rem 1rem', background: 'var(--primary-light, #f5f3ff)', borderRadius: '8px', fontSize: '0.95rem' }}>
+                <strong>Coût estimé :</strong> ~{estimatedHourly.toLocaleString('fr-FR')} XAF/heure
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'block', marginTop: '0.25rem' }}>
+                  Facturation par tranche de 30 min à l&apos;usage.
+                </span>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
               <button

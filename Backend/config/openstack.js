@@ -123,6 +123,11 @@ class OpenStackClient {
     return result.remote_console?.url || null;
   }
 
+  async createImageFromServer(serverId, imageName, projectId = null) {
+    await this.serverAction(serverId, { createImage: { name: imageName } }, projectId);
+    return { created: true, name: imageName };
+  }
+
   async listFlavors() {
     return this.makeRequest('GET', `${process.env.NOVA_URL}/flavors/detail`);
   }

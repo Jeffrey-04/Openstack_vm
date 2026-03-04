@@ -84,6 +84,12 @@ const login = async (req, res, next) => {
         error: { message: 'Invalid email or password', status: 401 }
       });
     }
+    if (user.isActive === false) {
+      logger.warn('Login: account disabled', email);
+      return res.status(403).json({
+        error: { message: 'Compte désactivé. Contactez l\'administrateur.', status: 403 }
+      });
+    }
 
     const valid = await user.comparePassword(password);
     if (!valid) {

@@ -5,6 +5,7 @@ import { DollarSign, ShoppingCart, Server, Users } from 'lucide-react';
 import apiService from '../../services/api';
 import toast from 'react-hot-toast';
 import Skeleton from '../../components/Skeleton';
+import EmptyState from '../../components/common/EmptyState';
 import './ClientOverview.css';
 
 /* Sales Dashboard: vives couleurs (rose, orange, vert, violet, bleu) */
@@ -78,6 +79,22 @@ export default function ClientOverview() {
   };
 
   const trendPct = vms.length > 0 ? (activeCount / vms.length * 100).toFixed(1) : '0';
+
+  if (!loading && vms.length === 0) {
+    return (
+      <div className="dashboard-figma sales-dashboard">
+        <EmptyState
+          title="Aucune VM pour l'instant"
+          message="Créez votre première machine virtuelle pour commencer. Vous pourrez suivre l'usage, accéder en SSH et à la console, et être facturé à la demi-heure."
+          action={
+            <Link to="/client/create" className="btn btn-primary">
+              Créer ma première VM
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -256,31 +273,31 @@ export default function ClientOverview() {
           <Link to="/client/vms" className="dashboard-figma-card-footer-link">Voir toutes les VMs</Link>
         </div>
 
-        {/* Card 5: Order trend — Activité */}
+        {/* Card 5: Activité récente — Dernières VMs */}
         <div className="dashboard-figma-card dashboard-figma-card-trend">
           <div className="dashboard-figma-card-head">
-            <h3 className="dashboard-figma-card-title">Activité</h3>
-            <Link to="/client/vms" className="dashboard-figma-link">Voir rapport</Link>
+            <h3 className="dashboard-figma-card-title">Activité récente</h3>
+            <Link to="/client/vms" className="dashboard-figma-link">Voir tout</Link>
           </div>
-          <div className="dashboard-figma-metric">{vms.length}</div>
-          <div className={`dashboard-figma-trend ${activeCount >= (vms.length || 1) ? 'dashboard-figma-trend-up' : 'dashboard-figma-trend-down'}`}>
-            {activeCount >= (vms.length || 1) ? '↑' : '↓'} {vms.length} VPS au total
-          </div>
-          <p className="dashboard-figma-period">VPS sur la plateforme.</p>
-          <div className="dashboard-figma-chart-wrap">
-            <ResponsiveContainer width="100%" height={100}>
-              <LineChart data={lineData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis hide />
-                <Tooltip />
-                <Line type="monotone" dataKey="actifs" stroke={CHART_COLORS[1]} strokeWidth={2.5} dot={false} name="Actifs" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="dashboard-figma-legend">
-            <span className="dashboard-figma-legend-dot" style={{ background: CHART_COLORS[0] }} /> Actifs
-          </div>
+          <p className="dashboard-figma-period">Dernières machines créées ou modifiées.</p>
+          {vms.length === 0 ? (
+            <p className="dashboard-figma-muted">Aucune VM</p>
+          ) : (
+            <ul className="dashboard-figma-list" style={{ marginTop: '0.5rem' }}>
+              {[...vms]
+                .sort((a, b) => new Date(b.created || 0) - new Date(a.created || 0))
+                .slice(0, 5)
+                .map((vm) => (
+                  <li key={vm.id} className="dashboard-figma-list-item">
+                    <span className="dashboard-figma-list-item-name">{vm.name || vm.id?.slice(0, 8)}</span>
+                    <span className="dashboard-figma-list-item-meta">
+                      {vm.status === 'ACTIVE' ? 'Actif' : vm.status === 'SHUTOFF' ? 'Arrêté' : vm.status} — {vm.created ? new Date(vm.created).toLocaleDateString('fr-FR') : '—'}
+                    </span>
+                    <Link to={`/client/vms/${vm.id}`} className="dashboard-figma-list-link">Voir</Link>
+                  </li>
+                ))}
+            </ul>
+          )}
         </div>
       </div>
 

@@ -245,12 +245,19 @@ async function runBillingJobForSlice(sliceEnd) {
     byUser[o.userId].push(o);
   }
 
+  const MIN_USAGE_HOURS_FOR_INVOICE = 0.5; // 30 min d'utilisation effective pour générer une facture (éviter factures 0 FCFA)
   let invoicesCreated = 0;
   for (const [userId, userOverlaps] of Object.entries(byUser)) {
     const existing = await Invoice.findOne({
       where: { userId, periodStart: sliceStart, periodEnd: sliceEnd }
     });
     if (existing) continue;
+
+    const totalDurationHours = userOverlaps.reduce((sum, o) => sum + (o.durationHours || 0), 0);
+    if (totalDurationHours < MIN_USAGE_HOURS_FOR_INVOICE) {
+      logger.info('Billing job: skip invoice (usage < 30 min)', { userId, totalDurationHours });
+      continue;
+    }
 
     const slices = [];
     let totalAmount = 0;

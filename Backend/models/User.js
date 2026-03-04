@@ -40,6 +40,12 @@ const User = sequelize.define('User', {
     comment: 'Keystone project ID for multi-tenant isolation when KEYSTONE_MULTI_TENANT=true',
     field: 'openstack_project_id'
   },
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+    field: 'is_active'
+  },
   createdAt: {
     type: DataTypes.DATE,
     allowNull: false,

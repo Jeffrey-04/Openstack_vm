@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { DollarSign, ShoppingCart, Server, Users } from 'lucide-react';
+import toast from 'react-hot-toast';
 import apiService from '../../services/api';
 import Skeleton from '../../components/Skeleton';
 import './AdminOverview.css';
@@ -24,6 +25,9 @@ export default function AdminOverview() {
   });
   const [vms, setVMs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionVmId, setActionVmId] = useState(null);
+  const [overviewPage, setOverviewPage] = useState(1);
+  const OVERVIEW_PAGE_SIZE = 10;
 
   useEffect(() => {
     loadDashboardData();
@@ -33,35 +37,21 @@ export default function AdminOverview() {
     try {
       setLoading(true);
       const [vmsResult, statsResult] = await Promise.all([
-        apiService.getVMs(),
+        apiService.getAdminVms(),
         apiService.getAdminStats()
       ]);
       const servers = vmsResult.servers || [];
       setVMs(servers);
-      const activeCount = servers.filter((vm) => vm.status === 'ACTIVE').length;
-      const suspendedCount = servers.filter((vm) => vm.status === 'SHUTOFF').length;
-
-      if (statsResult.stats) {
-        setStats({
-          totalVMs: servers.length,
-          activeVMs: activeCount,
-          suspendedVMs: suspendedCount,
-          totalUsers: statsResult.stats.totalUsers || 0,
-          activeUsers: statsResult.stats.activeUsers || 0,
-          monthlyRevenue: statsResult.stats.monthlyRevenue || 0,
-          revenueGrowth: statsResult.stats.revenueGrowth || 0,
-        });
-      } else {
-        setStats({
-          totalVMs: servers.length,
-          activeVMs: activeCount,
-          suspendedVMs: suspendedCount,
-          totalUsers: 0,
-          activeUsers: 0,
-          monthlyRevenue: 0,
-          revenueGrowth: 0,
-        });
-      }
+      const s = statsResult.stats || {};
+      setStats({
+        totalVMs: s.totalVMs ?? servers.length,
+        activeVMs: s.activeVMs ?? servers.filter((vm) => vm.status === 'ACTIVE').length,
+        suspendedVMs: s.suspendedVMs ?? servers.filter((vm) => vm.status === 'SHUTOFF' || vm.status === 'PAUSED' || vm.status === 'SUSPENDED').length,
+        totalUsers: s.totalUsers || 0,
+        activeUsers: s.activeUsers || 0,
+        monthlyRevenue: s.monthlyRevenue || 0,
+        revenueGrowth: s.revenueGrowth ?? 0,
+      });
     } catch (err) {
       console.error('Error loading admin dashboard:', err);
     } finally {
@@ -89,6 +79,22 @@ export default function AdminOverview() {
       SUSPENDED: 'Suspendu',
     };
     return map[status] || status;
+  };
+
+  const handleAdminVmAction = async (vm, action) => {
+    const id = vm.dbId || vm.id;
+    if (!id) return;
+    setActionVmId(id);
+    try {
+      await apiService.adminVmAction(id, action);
+      toast.success(action === 'stop' ? 'VM arrêtée.' : action === 'start' ? 'VM démarrée.' : 'VM redémarrée.');
+      loadDashboardData();
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.message || 'Erreur';
+      toast.error(msg);
+    } finally {
+      setActionVmId(null);
+    }
   };
 
   if (loading) {
@@ -169,7 +175,7 @@ export default function AdminOverview() {
           </div>
         </div>
         <div className="admin-vm-cards">
-          {vms.slice(0, 10).map((vm) => (
+          {vms.slice((overviewPage - 1) * OVERVIEW_PAGE_SIZE, overviewPage * OVERVIEW_PAGE_SIZE).map((vm) => (
             <div key={vm.id} className="admin-vm-card">
               <div className="admin-vm-card-header">
                 <span className="admin-vm-icon" aria-hidden="true" />
@@ -185,6 +191,16 @@ export default function AdminOverview() {
               </div>
               <div className="admin-action-buttons">
                 <Link to={`/admin/vms/${vm.id}`} className="admin-btn-icon" title="Voir détails">Voir</Link>
+                {vm.status === 'ACTIVE' && (
+                  <button type="button" className="admin-btn-icon admin-btn-stop" onClick={() => handleAdminVmAction(vm, 'stop')} disabled={actionVmId === (vm.dbId || vm.id)} title="Arrêter la VM">
+                    {actionVmId === (vm.dbId || vm.id) ? '…' : 'Arrêter'}
+                  </button>
+                )}
+                {vm.status === 'SHUTOFF' && (
+                  <button type="button" className="admin-btn-icon admin-btn-start" onClick={() => handleAdminVmAction(vm, 'start')} disabled={actionVmId === (vm.dbId || vm.id)} title="Démarrer la VM">
+                    {actionVmId === (vm.dbId || vm.id) ? '…' : 'Démarrer'}
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -203,7 +219,7 @@ export default function AdminOverview() {
               </tr>
             </thead>
             <tbody>
-              {vms.slice(0, 10).map((vm) => (
+              {vms.slice((overviewPage - 1) * OVERVIEW_PAGE_SIZE, overviewPage * OVERVIEW_PAGE_SIZE).map((vm) => (
                 <tr key={vm.id}>
                   <td>
                     <div className="admin-vm-name-cell">
@@ -234,6 +250,12 @@ export default function AdminOverview() {
                   <td>
                     <div className="admin-action-buttons">
                       <Link to={`/admin/vms/${vm.id}`} className="admin-btn-icon" title="Voir détails">Voir</Link>
+                      {vm.status === 'ACTIVE' && (
+                        <button type="button" className="admin-btn-icon admin-btn-stop" onClick={() => handleAdminVmAction(vm, 'stop')} disabled={actionVmId === (vm.dbId || vm.id)}>Arrêter</button>
+                      )}
+                      {vm.status === 'SHUTOFF' && (
+                        <button type="button" className="admin-btn-icon admin-btn-start" onClick={() => handleAdminVmAction(vm, 'start')} disabled={actionVmId === (vm.dbId || vm.id)}>Démarrer</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -248,13 +270,13 @@ export default function AdminOverview() {
             </tbody>
           </table>
         </div>
-        {vms.length > 10 && (
+        {vms.length > OVERVIEW_PAGE_SIZE && (
           <div className="admin-table-pagination">
-            <span>Affichage de 1 à 10 sur {vms.length} VMs</span>
+            <span>Affichage de {(overviewPage - 1) * OVERVIEW_PAGE_SIZE + 1} à {Math.min(overviewPage * OVERVIEW_PAGE_SIZE, vms.length)} sur {vms.length} VMs</span>
             <div className="admin-pagination-btns">
-              <button type="button" className="admin-btn-pagination">Précédent</button>
-              <button type="button" className="admin-btn-pagination admin-btn-pagination-active">1</button>
-              <button type="button" className="admin-btn-pagination">Suivant</button>
+              <button type="button" className="admin-btn-pagination" onClick={() => setOverviewPage((p) => Math.max(1, p - 1))} disabled={overviewPage === 1}>Précédent</button>
+              <span className="admin-btn-pagination admin-btn-pagination-active" style={{ pointerEvents: 'none' }}>{overviewPage}</span>
+              <button type="button" className="admin-btn-pagination" onClick={() => setOverviewPage((p) => p + 1)} disabled={overviewPage >= Math.ceil(vms.length / OVERVIEW_PAGE_SIZE)}>Suivant</button>
             </div>
           </div>
         )}

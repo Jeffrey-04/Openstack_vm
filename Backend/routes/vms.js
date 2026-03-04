@@ -25,11 +25,26 @@ router.use(authenticate);
 
 // Find VM by route param: accept OpenStack instanceId or our DB id (UUID)
 async function findVmByParam(paramId, userId) {
-  if (!paramId || !userId) return null;
+  logger.info('[findVmByParam] entry', { paramId: paramId || '(empty)', userId: userId || '(empty)' });
+  if (!paramId || !userId) {
+    logger.warn('[findVmByParam] missing paramId or userId');
+    return null;
+  }
   const byInstance = await VM.findOne({ where: { instanceId: paramId, userId } });
-  if (byInstance) return byInstance;
+  if (byInstance) {
+    logger.info('[findVmByParam] found by instanceId', { dbId: byInstance.id, instanceId: byInstance.instanceId });
+    return byInstance;
+  }
+  logger.info('[findVmByParam] not found by instanceId, trying by pk');
   const byPk = await VM.findOne({ where: { id: paramId, userId } });
-  return byPk || null;
+  if (byPk) {
+    logger.info('[findVmByParam] found by pk (id)', { dbId: byPk.id, instanceId: byPk.instanceId });
+    return byPk;
+  }
+  logger.warn('[findVmByParam] not found', { paramId, userId });
+  const debugList = await VM.findAll({ where: { userId }, attributes: ['id', 'instanceId'], limit: 5, raw: true });
+  logger.info('[findVmByParam] user VMs in DB (sample)', { count: debugList.length, sample: debugList });
+  return null;
 }
 
 function normalizeVmParam(paramId) {
@@ -68,6 +83,9 @@ router.get('/', async (req, res, next) => {
         try {
           const data = await openstack.getServer(vm.instanceId, projectId);
           const raw = data.server || data;
+          if (raw.status && raw.status !== vm.status) {
+            vm.update({ status: raw.status }).catch(() => {});
+          }
           const s = { ...raw, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
           s.preferredAddress = getPreferredAddress(s);
           return s;
@@ -90,20 +108,21 @@ router.get('/', async (req, res, next) => {
 // Console by DB id — MUST be before /:id routes so "console" is not captured as :id
 router.get('/console/by-db-id/:dbId', async (req, res, next) => {
   const dbId = normalizeVmParam(req.params.dbId);
-  logger.info('Console by-db-id: request', { dbId: dbId || '(empty)', userId: req.userId });
+  logger.info('[Console] route /console/by-db-id/:dbId hit', { path: req.path, dbId: dbId || '(empty)', userId: req.userId });
   try {
     if (!dbId) {
-      logger.warn('Console by-db-id: missing dbId');
+      logger.warn('[Console] by-db-id: missing dbId');
       return res.status(400).json({ error: { message: 'dbId required', status: 400 } });
     }
     const vm = await VM.findOne({ where: { id: dbId, userId: req.userId } });
     if (!vm) {
-      logger.warn('Console by-db-id: VM not found', { dbId, userId: req.userId });
+      const debugList = await VM.findAll({ where: { userId: req.userId }, attributes: ['id', 'instanceId'], limit: 10, raw: true });
+      logger.warn('[Console] by-db-id: VM not found', { dbId, userId: req.userId, userVmsSample: debugList });
       return res.status(404).json({
         error: { message: 'VM introuvable ou accès non autorisé.', status: 404, code: 'VM_NOT_FOUND' }
       });
     }
-    logger.info('Console by-db-id: VM found', { dbId, instanceId: vm.instanceId });
+    logger.info('[Console] by-db-id: VM found', { dbId: vm.id, instanceId: vm.instanceId });
     const projectId = req.user?.openstackProjectId || null;
     const url = await openstack.getConsoleUrl(vm.instanceId, projectId);
     if (!url) {
@@ -126,11 +145,11 @@ router.get('/:id/scaling-history', scalingController.getScalingHistory);
 
 router.get('/:id/console', async (req, res, next) => {
   const paramId = normalizeVmParam(req.params.id);
-  logger.info('Console by-id: request', { paramId: paramId?.substring(0, 12) + '…', userId: req.userId });
+  logger.info('[Console] route /:id/console hit', { path: req.path, paramId: paramId || '(empty)', userId: req.userId });
   try {
     const vm = await findVmByParam(paramId, req.userId);
     if (!vm) {
-      logger.warn('Console by-id: VM not found', { paramId: paramId?.substring(0, 12), userId: req.userId });
+      logger.warn('[Console] by-id: VM not found after findVmByParam', { paramId, userId: req.userId });
       return res.status(404).json({
         error: {
           message: 'VM introuvable ou accès non autorisé. Rechargez la page détail.',
@@ -139,7 +158,7 @@ router.get('/:id/console', async (req, res, next) => {
         }
       });
     }
-    logger.info('Console by-id: VM found', { instanceId: vm.instanceId, dbId: vm.id });
+    logger.info('[Console] by-id: VM found', { instanceId: vm.instanceId, dbId: vm.id });
     const projectId = req.user?.openstackProjectId || null;
     const url = await openstack.getConsoleUrl(vm.instanceId, projectId);
     if (!url) {
@@ -154,13 +173,43 @@ router.get('/:id/console', async (req, res, next) => {
   }
 });
 
+// Create snapshot (image) from VM — Nova createImage
+router.post('/:id/snapshot', async (req, res, next) => {
+  const paramId = normalizeVmParam(req.params.id);
+  const name = (req.body.name && String(req.body.name).trim()) || `snap-${Date.now()}`;
+  try {
+    const vm = await findVmByParam(paramId, req.userId);
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM introuvable', status: 404 } });
+    }
+    if (vm.status !== 'ACTIVE' && vm.status !== 'SHUTOFF') {
+      return res.status(400).json({ error: { message: 'La VM doit être active ou arrêtée pour créer un snapshot.', status: 400 } });
+    }
+    const projectId = req.user?.openstackProjectId || null;
+    const imageName = name.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 128) || `snap-${Date.now()}`;
+    await openstack.createImageFromServer(vm.instanceId, imageName, projectId);
+    logger.info('Snapshot created', { instanceId: vm.instanceId, imageName });
+    res.status(202).json({ success: true, message: 'Snapshot en cours de création. L\'image apparaîtra dans Glance dans quelques minutes.', imageName });
+  } catch (err) {
+    logger.error('Snapshot error:', err.message);
+    if (err.response?.status === 400) {
+      return res.status(400).json({ error: { message: err.response?.data?.error?.message || 'Impossible de créer le snapshot.', status: 400 } });
+    }
+    next(err);
+  }
+});
+
 // Get specific VM (must belong to current user), with flavor details and image name for detail page
 router.get('/:id', async (req, res, next) => {
+  const requestedId = req.params.id;
+  logger.info('[GET /:id] VM detail request', { requestedId: requestedId || '(empty)', userId: req.userId });
   try {
-    const vm = await findVmByParam(req.params.id, req.userId);
+    const vm = await findVmByParam(requestedId, req.userId);
     if (!vm) {
+      logger.warn('[GET /:id] VM not found', { requestedId, userId: req.userId });
       return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
     }
+    logger.info('[GET /:id] VM found, returning', { dbId: vm.id, instanceId: vm.instanceId, openstackIdInResponse: vm.instanceId });
     const projectId = req.user?.openstackProjectId || null;
     const data = await openstack.getServer(vm.instanceId, projectId);
     const raw = data.server || data;

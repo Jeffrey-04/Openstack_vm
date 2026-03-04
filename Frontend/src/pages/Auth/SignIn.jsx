@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 import AuthVisual from '../../components/AuthVisual';
 import '../../pages/Auth.css';
 
@@ -45,6 +46,7 @@ export default function SignIn() {
         (err.response?.status === 0 || err.code === 'ERR_NETWORK' ? 'Connexion au serveur impossible.' : 'Identifiants incorrects.');
       console.error('[SignIn] submit error', { message: msg, status: err?.response?.status, code: err?.code, url: err?.config?.baseURL + err?.config?.url });
       setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -57,6 +59,7 @@ export default function SignIn() {
           <span className="auth-logo-icon" aria-hidden="true">VM</span>
           <span>VM Marketplace</span>
         </Link>
+        <p className="auth-tagline">VPS à la demande, facturés à l&apos;usage</p>
         <h1>Connexion</h1>
         <p className="auth-subtitle">
           Connectez-vous pour accéder à votre espace client ou administrateur.

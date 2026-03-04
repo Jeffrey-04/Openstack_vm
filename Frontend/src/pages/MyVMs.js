@@ -169,13 +169,13 @@ function MyVMs() {
       {vms.length === 0 ? (
         <EmptyState
           title="Aucune machine virtuelle"
-          message="Créez votre première VM en quelques clics."
+          message="Lancez votre première VM en quelques clics. Choisissez une image, une taille, et déployez. Facturation à la demi-heure."
           action={
             <Link
               to={isClient ? '/client/create' : '/admin/create'}
               className="btn btn-primary"
             >
-              Créer une VM
+              Créer ma première VM
             </Link>
           }
         />

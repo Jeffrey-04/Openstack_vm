@@ -20,6 +20,7 @@ import SettingsPage from './pages/SettingsPage';
 import AdminVmTemplates from './pages/admin/AdminVmTemplates';
 import AdminScaleUpRule from './pages/admin/AdminScaleUpRule';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminVMs from './pages/admin/AdminVMs';
 import AuthLayout from './pages/Auth/AuthLayout';
 import SignIn from './pages/Auth/SignIn';
 import SignUp from './pages/Auth/SignUp';
@@ -103,7 +104,7 @@ function AppContent() {
             </PrivateRoute>
           }>
             <Route index element={<AdminDashboard />} />
-            <Route path="vms" element={<AdminDashboard />} />
+            <Route path="vms" element={<AdminVMs />} />
             <Route path="vms/:id" element={<VMDetail />} />
             <Route path="create" element={<CreateVM />} />
             <Route path="vm-templates" element={<AdminVmTemplates />} />

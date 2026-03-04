@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../../services/api';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 import Skeleton from '../../components/Skeleton';
 import './AdminUsers.css';
 
 export default function AdminUsers() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const [togglingId, setTogglingId] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -59,6 +63,20 @@ export default function AdminUsers() {
 
   const getRoleBadge = (role) => {
     return role === 'admin' ? 'admin-badge' : 'client-badge';
+  };
+
+  const handleToggleActive = async (u) => {
+    if (u.id === currentUser?.id) return;
+    setTogglingId(u.id);
+    try {
+      await apiService.updateAdminUser(u.id, { isActive: !u.isActive });
+      toast.success(u.isActive ? 'Utilisateur désactivé.' : 'Utilisateur réactivé.');
+      loadUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Erreur');
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   if (loading && users.length === 0) {
@@ -127,15 +145,17 @@ export default function AdminUsers() {
               <th>Email</th>
               <th>Nom</th>
               <th>Rôle</th>
+              <th>Statut</th>
               <th>VMs</th>
               <th>Factures</th>
               <th>Date d'inscription</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan="6" className="admin-users-empty">
+                <td colSpan="8" className="admin-users-empty">
                   {search ? 'Aucun utilisateur trouvé.' : 'Aucun utilisateur.'}
                 </td>
               </tr>
@@ -149,9 +169,27 @@ export default function AdminUsers() {
                       {user.role === 'admin' ? 'Admin' : 'Client'}
                     </span>
                   </td>
+                  <td>
+                    <span className={user.isActive !== false ? 'admin-users-status-active' : 'admin-users-status-inactive'}>
+                      {user.isActive !== false ? 'Actif' : 'Désactivé'}
+                    </span>
+                  </td>
                   <td>{user.vmCount || 0}</td>
                   <td>{user.invoiceCount || 0}</td>
                   <td>{formatDate(user.createdAt)}</td>
+                  <td>
+                    {user.id !== currentUser?.id && (
+                      <button
+                        type="button"
+                        className={`admin-users-btn-toggle ${user.isActive !== false ? 'admin-users-btn-deactivate' : 'admin-users-btn-activate'}`}
+                        onClick={() => handleToggleActive(user)}
+                        disabled={togglingId === user.id}
+                        title={user.isActive !== false ? 'Désactiver l\'utilisateur' : 'Réactiver l\'utilisateur'}
+                      >
+                        {togglingId === user.id ? '…' : (user.isActive !== false ? 'Désactiver' : 'Réactiver')}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

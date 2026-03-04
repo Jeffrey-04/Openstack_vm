@@ -70,3 +70,5 @@ La facturation est par tranche de 30 min. Si une VM scale up ou down **en cours 
 | Voir ressources (CPU, RAM, etc.) | Page détail VM, section « Utilisation des ressources ». |
 | Voir / tester scale up | Politique avec seuil haut ; générer charge ; vérifier « Plan actuel » et « Historique des scale ». |
 | Voir / tester scale down | Réduire charge sous seuil bas ; après cooldown, vérifier « Plan actuel » et historique. |
+
+#cd Backend && node -e "require('dotenv').config(); require('./models').#runMigrations().then(() => process.exit(0)).catch(e => { console.error(e); #process.exit(1); })"

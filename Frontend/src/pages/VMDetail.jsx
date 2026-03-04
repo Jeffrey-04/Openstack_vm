@@ -50,6 +50,7 @@ function VMDetail() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [consoleLoading, setConsoleLoading] = useState(false);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
@@ -435,22 +436,29 @@ function VMDetail() {
                     try {
                     let res = null;
                     const instanceId = vm.id || id;
-                    if (vm.dbId) {
+                    const dbId = vm.dbId;
+                    console.info('[VMDetail] Console: vm.dbId=', dbId, 'vm.id (instanceId)=', instanceId, 'url param id=', id);
+                    if (dbId) {
                       try {
-                        res = await apiService.getVmConsoleByDbId(vm.dbId);
+                        console.info('[VMDetail] Console: trying GET /api/vms/console/by-db-id/' + dbId);
+                        res = await apiService.getVmConsoleByDbId(dbId);
                       } catch (e) {
+                        console.warn('[VMDetail] Console: by-db-id failed', e.response?.status, e.response?.data);
                         if (e.response?.status === 404 && instanceId) {
+                          console.info('[VMDetail] Console: fallback GET /api/vms/' + instanceId + '/console');
                           res = await apiService.getVmConsole(instanceId);
                         } else {
                           throw e;
                         }
                       }
                     } else {
+                      console.info('[VMDetail] Console: no vm.dbId, using GET /api/vms/' + instanceId + '/console');
                       res = await apiService.getVmConsole(instanceId);
                     }
                     if (res?.url) window.open(res.url, '_blank', 'noopener,noreferrer');
                     else toast.error('Console non disponible');
                   } catch (e) {
+                    console.error('[VMDetail] Console error', e.response?.status, e.response?.data);
                     const status = e.response?.status;
                     const msg = e.response?.data?.error?.message;
                     if (status === 404) toast.error(msg || 'VM introuvable. Rechargez la page détail puis réessayez.');
@@ -462,6 +470,28 @@ function VMDetail() {
                 }}
               >
                 {consoleLoading ? 'Ouverture...' : 'Accéder à la console'}
+              </button>
+            </div>
+          )}
+          {(vm.status === 'ACTIVE' || vm.status === 'SHUTOFF') && (
+            <div style={{ marginTop: '1rem' }}>
+              <button
+                type="button"
+                className="vm-detail-btn vm-detail-btn-restart"
+                disabled={snapshotLoading}
+                onClick={async () => {
+                  setSnapshotLoading(true);
+                  try {
+                    await apiService.createVmSnapshot(vm.id || id, `snap-${vm.name || 'vm'}-${Date.now()}`);
+                    toast.success('Snapshot en cours de création. L\'image sera disponible dans Glance.');
+                  } catch (e) {
+                    toast.error(e.response?.data?.error?.message || 'Impossible de créer le snapshot.');
+                  } finally {
+                    setSnapshotLoading(false);
+                  }
+                }}
+              >
+                {snapshotLoading ? 'Création…' : 'Créer un snapshot'}
               </button>
             </div>
           )}

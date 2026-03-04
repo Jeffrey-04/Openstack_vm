@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
+import apiService from '../services/api';
 import {
   LayoutDashboard,
   Server,
@@ -14,10 +15,12 @@ import {
   Menu,
   Search,
   Bell,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { API } from '../config';
 import './DashboardLayout.css';
 
 const ICON_MAP = {
@@ -35,6 +38,9 @@ const ICON_MAP = {
   Search,
   Bell,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
 };
 
 const CLIENT_SIDEBAR_ITEMS = [
@@ -42,7 +48,6 @@ const CLIENT_SIDEBAR_ITEMS = [
   { label: 'Mes VMs', path: '/client/vms', icon: 'Server' },
   { label: 'Marketplace', path: '/client/marketplace', icon: 'ShoppingCart' },
   { label: 'Créer une VM', path: '/client/create', icon: 'PlusCircle' },
-  { label: 'OpenStack', path: API.OPENSTACK_DASHBOARD_URL, external: true, icon: 'Settings' },
   { label: 'Paramètres', path: '/client/settings', icon: 'Settings' },
   { label: 'Facturation', path: '/client/billing', icon: 'CreditCard' },
 ];
@@ -50,7 +55,6 @@ const CLIENT_SIDEBAR_ITEMS = [
 const ADMIN_SIDEBAR_ITEMS = [
   { label: 'Overview', path: '/admin', icon: 'LayoutDashboard' },
   { label: 'VMs', path: '/admin/vms', icon: 'Server' },
-  { label: 'Créer une VM', path: '/admin/create', icon: 'PlusCircle' },
   { label: 'Modèles VM', path: '/admin/vm-templates', icon: 'Box' },
   { label: 'Règle scale up', path: '/admin/scale-up-rule', icon: 'TrendingUp' },
   { label: 'Utilisateurs', path: '/admin/users', icon: 'Users' },
@@ -68,11 +72,29 @@ const SEGMENT_LABELS = {
   admin: { '': 'Overview', vms: 'VMs', create: 'Créer une VM', 'vm-templates': 'Modèles VM', 'scale-up-rule': 'Règle scale up', users: 'Utilisateurs', billing: 'Facturation', settings: 'Paramètres' },
 };
 
+function HealthIndicator() {
+  const [status, setStatus] = useState(null);
+  useEffect(() => {
+    apiService.getOpenstackStatus()
+      .then((res) => setStatus(res.connected ? 'ok' : 'error'))
+      .catch(() => setStatus('error'));
+  }, []);
+  if (status === null) return null;
+  return (
+    <div className={`sidebar-health ${status === 'ok' ? 'sidebar-health-ok' : 'sidebar-health-error'}`} title={status === 'ok' ? 'OpenStack connecté' : 'Service indisponible'}>
+      <span className="sidebar-health-dot" aria-hidden="true" />
+      <span className="sidebar-health-label">{status === 'ok' ? 'OpenStack OK' : 'Hors ligne'}</span>
+    </div>
+  );
+}
+
 export default function DashboardLayout({ type = 'client' }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const basePath = type === 'client' ? '/client' : '/admin';
   const pathSuffix = location.pathname.replace(basePath, '') || '';
@@ -90,14 +112,36 @@ export default function DashboardLayout({ type = 'client' }) {
     return location.pathname.startsWith(path);
   };
 
+  const userWrapRef = useRef(null);
+  const notifWrapRef = useRef(null);
+  useEffect(() => {
+    const close = (e) => {
+      if (userWrapRef.current && !userWrapRef.current.contains(e.target)) setUserMenuOpen(false);
+      if (notifWrapRef.current && !notifWrapRef.current.contains(e.target)) setNotifOpen(false);
+    };
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, []);
+
   return (
     <div className="dashboard-layout">
       <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : 'collapsed'} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <Link to={type === 'client' ? '/client' : '/admin'} className="sidebar-brand">
             <span className="sidebar-brand-icon"><Cloud size={24} /></span>
-            <span className="sidebar-brand-text">VM Marketplace</span>
+            <div className="sidebar-brand-text-wrap">
+              <span className="sidebar-brand-text">VM Marketplace</span>
+              <span className="sidebar-brand-tagline">VPS à la demande</span>
+            </div>
           </Link>
+          <button
+            type="button"
+            className="sidebar-collapse-toggle"
+            onClick={() => setSidebarOpen((o) => !o)}
+            aria-label={sidebarOpen ? 'Réduire le menu' : 'Ouvrir le menu'}
+          >
+            {sidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+          </button>
         </div>
         <nav className="sidebar-nav">
           {sidebarItems.map((item) =>
@@ -125,6 +169,7 @@ export default function DashboardLayout({ type = 'client' }) {
           )}
         </nav>
         <div className="sidebar-footer">
+          <HealthIndicator />
           <div className="sidebar-user">
             <span className="sidebar-user-avatar">
               {user?.name?.[0] || user?.email?.[0] || '?'}
@@ -164,27 +209,59 @@ export default function DashboardLayout({ type = 'client' }) {
             {subtitle && <p className="topbar-subtitle">{subtitle}</p>}
           </div>
           <div className="topbar-search-wrap">
-            <Search size={18} className="topbar-search-icon" />
+            <Search size={18} className="topbar-search-icon" aria-hidden="true" />
             <input
               type="search"
               className="topbar-search"
-              placeholder="Rechercher"
-              aria-label="Rechercher"
+              placeholder="Rechercher (à venir)"
+              aria-label="Recherche globale (à venir)"
+              disabled
             />
           </div>
           <div className="topbar-actions">
-            <button type="button" className="topbar-icon-btn" aria-label="Notifications">
-              <Bell size={20} />
-            </button>
-            <div className="topbar-user topbar-user-dropdown">
-              <span className="topbar-user-avatar">
-                {user?.name?.[0] || user?.email?.[0] || '?'}
-              </span>
-              <div>
-                <span className="topbar-user-name">{user?.name || user?.email || 'User'}</span>
-                <span className="topbar-user-role">{type === 'admin' ? 'Admin' : 'Client'}</span>
-              </div>
-              <ChevronDown size={16} className="topbar-user-chevron" />
+            <div className="topbar-notif-wrap" ref={notifWrapRef}>
+              <button
+                type="button"
+                className="topbar-icon-btn"
+                aria-label="Notifications"
+                aria-expanded={notifOpen}
+                onClick={() => { setNotifOpen((o) => !o); setUserMenuOpen(false); }}
+              >
+                <Bell size={20} />
+              </button>
+              {notifOpen && (
+                <div className="topbar-dropdown topbar-dropdown-notif" role="menu">
+                  <p className="topbar-dropdown-empty">Aucune notification</p>
+                </div>
+              )}
+            </div>
+            <div className="topbar-user-wrap" ref={userWrapRef}>
+              <button
+                type="button"
+                className="topbar-user topbar-user-dropdown"
+                aria-expanded={userMenuOpen}
+                aria-haspopup="true"
+                onClick={() => { setUserMenuOpen((o) => !o); setNotifOpen(false); }}
+              >
+                <span className="topbar-user-avatar">
+                  {user?.name?.[0] || user?.email?.[0] || '?'}
+                </span>
+                <div>
+                  <span className="topbar-user-name">{user?.name || user?.email || 'User'}</span>
+                  <span className="topbar-user-role">{type === 'admin' ? 'Admin' : 'Client'}</span>
+                </div>
+                <ChevronDown size={16} className="topbar-user-chevron" />
+              </button>
+              {userMenuOpen && (
+                <div className="topbar-dropdown topbar-dropdown-user" role="menu">
+                  <Link to={type === 'client' ? '/client/settings' : '/admin/settings'} className="topbar-dropdown-item" onClick={() => setUserMenuOpen(false)}>
+                    <Settings size={16} /> Paramètres
+                  </Link>
+                  <button type="button" className="topbar-dropdown-item topbar-dropdown-item-danger" onClick={() => { setUserMenuOpen(false); logout(); }}>
+                    <LogOut size={16} /> Déconnexion
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

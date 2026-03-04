@@ -629,6 +629,23 @@
   border-bottom: none;
 }
 
+.dashboard-figma-list-item-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.dashboard-figma-list-item-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted, #64748b);
+}
+
+.dashboard-figma-muted {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted, #64748b);
+}
+
 .dashboard-figma-list-thumb {
   width: 36px;
   height: 36px;

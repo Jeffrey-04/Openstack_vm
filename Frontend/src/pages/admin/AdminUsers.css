@@ -176,3 +176,40 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.admin-users-status-active {
+  color: var(--success, #16a34a);
+  font-weight: 500;
+}
+
+.admin-users-status-inactive {
+  color: var(--text-muted, #6b7280);
+}
+
+.admin-users-btn-toggle {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid;
+}
+
+.admin-users-btn-deactivate {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.admin-users-btn-deactivate:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.admin-users-btn-activate {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.admin-users-btn-activate:hover:not(:disabled) {
+  background: #dcfce7;
+}

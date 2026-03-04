@@ -156,6 +156,11 @@ export const apiService = {
     return response.data;
   },
 
+  async createVmSnapshot(vmId, name) {
+    const response = await axiosInstance.post(API.ENDPOINTS.VM_SNAPSHOT(vmId), name ? { name } : {});
+    return response.data;
+  },
+
   async deleteVM(id) {
     const response = await axiosInstance.delete(API.ENDPOINTS.VM_BY_ID(id));
     return response.data;
@@ -287,6 +292,18 @@ export const apiService = {
   },
   async getAdminStats() {
     const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_STATS);
+    return response.data;
+  },
+  async getAdminVms() {
+    const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_VMS);
+    return response.data;
+  },
+  async adminVmAction(vmIdOrDbId, action) {
+    const response = await axiosInstance.post(`${API.ENDPOINTS.ADMIN_VMS}/${vmIdOrDbId}/action`, { action });
+    return response.data;
+  },
+  async updateAdminUser(id, data) {
+    const response = await axiosInstance.patch(`${API.ENDPOINTS.ADMIN_USERS}/${id}`, data);
     return response.data;
   },
   async getAdminUsers(params = {}) {
