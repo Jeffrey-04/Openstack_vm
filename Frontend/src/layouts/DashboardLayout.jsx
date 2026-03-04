@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import apiService from '../services/api';
 import {
@@ -88,6 +88,19 @@ function HealthIndicator() {
   );
 }
 
+const SEARCH_RESULTS_MAX = 8;
+
+function filterVmsByQuery(servers, query) {
+  if (!Array.isArray(servers) || !query || !query.trim()) return [];
+  const q = query.trim().toLowerCase();
+  return servers.filter((s) => {
+    const name = (s.name || '').toLowerCase();
+    const id = (s.id || '').toLowerCase();
+    const dbId = String(s.dbId || '').toLowerCase();
+    return name.includes(q) || id.includes(q) || dbId.includes(q);
+  }).slice(0, SEARCH_RESULTS_MAX);
+}
+
 export default function DashboardLayout({ type = 'client' }) {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -95,6 +108,12 @@ export default function DashboardLayout({ type = 'client' }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchCacheRef = useRef(null);
+  const searchWrapRef = useRef(null);
 
   const basePath = type === 'client' ? '/client' : '/admin';
   const pathSuffix = location.pathname.replace(basePath, '') || '';
@@ -118,10 +137,44 @@ export default function DashboardLayout({ type = 'client' }) {
     const close = (e) => {
       if (userWrapRef.current && !userWrapRef.current.contains(e.target)) setUserMenuOpen(false);
       if (notifWrapRef.current && !notifWrapRef.current.contains(e.target)) setNotifOpen(false);
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) setSearchOpen(false);
     };
     document.addEventListener('click', close);
     return () => document.removeEventListener('click', close);
   }, []);
+
+  const loadSearchCache = useCallback(async () => {
+    if (searchCacheRef.current) return;
+    setSearchLoading(true);
+    try {
+      const data = type === 'admin' ? await apiService.getAdminVms() : await apiService.getVms();
+      const list = data.servers || [];
+      searchCacheRef.current = list;
+    } catch {
+      searchCacheRef.current = [];
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [type]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchOpen(false);
+      return;
+    }
+    if (searchCacheRef.current) {
+      setSearchResults(filterVmsByQuery(searchCacheRef.current, searchQuery));
+      setSearchOpen(true);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!searchLoading && searchQuery.trim() && searchCacheRef.current) {
+      setSearchResults(filterVmsByQuery(searchCacheRef.current, searchQuery));
+      setSearchOpen(true);
+    }
+  }, [searchLoading, searchQuery]);
 
   return (
     <div className="dashboard-layout">
@@ -208,15 +261,57 @@ export default function DashboardLayout({ type = 'client' }) {
             <h1 className="topbar-title">{title}</h1>
             {subtitle && <p className="topbar-subtitle">{subtitle}</p>}
           </div>
-          <div className="topbar-search-wrap">
+          <div className="topbar-search-wrap" ref={searchWrapRef}>
             <Search size={18} className="topbar-search-icon" aria-hidden="true" />
             <input
               type="search"
               className="topbar-search"
-              placeholder="Rechercher (à venir)"
-              aria-label="Recherche globale (à venir)"
-              disabled
+              placeholder="Rechercher une VM..."
+              aria-label="Rechercher une VM par nom ou ID"
+              aria-expanded={searchOpen}
+              aria-autocomplete="list"
+              value={searchQuery}
+              onFocus={() => {
+                loadSearchCache();
+                if (searchQuery.trim()) setSearchOpen(true);
+              }}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setSearchOpen(false);
+                  e.target.blur();
+                }
+              }}
             />
+            {searchOpen && searchQuery.trim() && (
+              <div className="topbar-search-dropdown" role="listbox">
+                {searchLoading ? (
+                  <p className="topbar-search-dropdown-empty">Chargement...</p>
+                ) : searchResults.length === 0 ? (
+                  <p className="topbar-search-dropdown-empty">Aucune VM trouvée</p>
+                ) : (
+                  <ul className="topbar-search-results" role="listbox">
+                    {searchResults.map((vm) => (
+                      <li key={vm.id || vm.dbId}>
+                        <Link
+                          to={`${basePath}/vms/${vm.id}`}
+                          className="topbar-search-result-item"
+                          role="option"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setSearchOpen(false);
+                          }}
+                        >
+                          <Server size={16} className="topbar-search-result-icon" />
+                          <span className="topbar-search-result-name">{vm.name || vm.id}</span>
+                          <span className="topbar-search-result-status">{vm.status === 'ACTIVE' ? 'Actif' : vm.status === 'SHUTOFF' ? 'Arrêté' : vm.status || '—'}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
           <div className="topbar-actions">
             <div className="topbar-notif-wrap" ref={notifWrapRef}>

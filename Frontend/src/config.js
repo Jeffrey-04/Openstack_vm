@@ -48,8 +48,11 @@ export const API = {
     ADMIN_SCALE_UP_RULE: '/api/admin/scale-up-rule',
     ADMIN_STATS: '/api/admin/stats',
     ADMIN_VMS: '/api/admin/vms',
+    ADMIN_VM_BY_ID: (id) => `/api/admin/vms/${id}`,
     ADMIN_USERS: '/api/admin/users',
     ADMIN_INVOICES: '/api/admin/invoices',
+    ADMIN_INVOICE_BY_ID: (id) => `/api/admin/invoices/${id}`,
+    ADMIN_INVOICE_DOWNLOAD: (id) => `/api/admin/invoices/${id}/download`,
   }
 };
 

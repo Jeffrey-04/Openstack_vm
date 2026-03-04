@@ -7,8 +7,25 @@ function findVmByParam(paramId) {
   if (!paramId) return null;
   return VM.findOne({
     where: { [Op.or]: [{ instanceId: paramId }, { id: paramId }] },
-    include: [{ model: User, as: 'User', attributes: ['openstackProjectId'] }]
+    include: [{ model: User, as: 'User', attributes: ['id', 'openstackProjectId', 'email', 'name'] }]
   });
+}
+
+function getPreferredAddress(server) {
+  const s = server || {};
+  if (s.accessIPv4 && String(s.accessIPv4).trim()) return String(s.accessIPv4).trim();
+  const addrs = s.addresses && typeof s.addresses === 'object' ? s.addresses : {};
+  const networkNames = Object.keys(addrs);
+  const prefer = networkNames.find((n) => /public|floating|ext|external/i.test(n));
+  if (prefer && Array.isArray(addrs[prefer]) && addrs[prefer].length > 0) {
+    const first = addrs[prefer].find((a) => a.version === 4 || a.addr);
+    if (first && first.addr) return first.addr;
+  }
+  for (const name of networkNames) {
+    const list = addrs[name];
+    if (Array.isArray(list) && list.length > 0 && list[0].addr) return list[0].addr;
+  }
+  return null;
 }
 
 /**
@@ -258,6 +275,56 @@ async function updateUser(req, res, next) {
 }
 
 /**
+ * GET /api/admin/vms/:id
+ * Détail d'une VM (admin peut voir n'importe quelle VM)
+ */
+async function getVmDetail(req, res, next) {
+  try {
+    const { id } = req.params;
+    const vm = await findVmByParam(id);
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM introuvable', status: 404 } });
+    }
+    const projectId = vm.User?.openstackProjectId || null;
+    const data = await openstack.getServer(vm.instanceId, projectId);
+    const raw = data.server || data;
+    const server = {
+      ...raw,
+      dbId: vm.id,
+      flavorId: vm.flavorId,
+      expiresAt: vm.expiresAt,
+      preferredAddress: getPreferredAddress(raw)
+    };
+    const flavorId = server.flavor?.id || server.flavorId || vm.flavorId;
+    if (flavorId) {
+      try {
+        const flavorData = await openstack.getFlavor(flavorId, projectId);
+        server.flavor = flavorData.flavor || flavorData;
+      } catch {
+        // keep existing
+      }
+    }
+    const imageId = server.image?.id || (typeof server.image === 'string' ? server.image : null);
+    if (imageId) {
+      try {
+        const imageData = await openstack.getImage(imageId);
+        const img = imageData.image || imageData;
+        server.image = { id: imageId, name: img.name || img.display_name || null };
+      } catch {
+        server.image = server.image && typeof server.image === 'object' ? server.image : { id: imageId, name: null };
+      }
+    }
+    if (vm.User) {
+      server.owner = { id: vm.User.id, email: vm.User.email, name: vm.User.name };
+    }
+    res.json({ success: true, server });
+  } catch (err) {
+    logger.error('Admin get VM detail error:', err.message);
+    next(err);
+  }
+}
+
+/**
  * POST /api/admin/vms/:id/action
  * Permet à l'admin d'arrêter (ou autre action) une VM quelconque
  */
@@ -297,6 +364,7 @@ module.exports = {
   getStats,
   listUsers,
   listAllVms,
+  getVmDetail,
   updateUser,
   vmAction
 };

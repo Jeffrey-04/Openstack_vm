@@ -108,6 +108,51 @@ async function downloadInvoice(req, res, next) {
   }
 }
 
+/**
+ * GET /api/admin/invoices/:id/download
+ * Télécharger une facture (admin peut télécharger n'importe quelle facture)
+ */
+async function downloadAdminInvoice(req, res, next) {
+  try {
+    const { id } = req.params;
+    const invoice = await Invoice.findOne({
+      where: { id },
+      include: [
+        { model: User, as: 'User', attributes: ['name', 'email'] },
+        { model: InvoiceItem, as: 'InvoiceItems' }
+      ]
+    });
+    if (!invoice) {
+      return res.status(404).json({ error: { message: 'Facture introuvable', status: 404 } });
+    }
+    const user = invoice.User || {};
+    const items = (invoice.InvoiceItems || []).map((item) => ({
+      description: item.description,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      total: Number(item.total)
+    }));
+    const pdfBuffer = await generatePdf({
+      invoiceNumber: invoice.invoiceNumber,
+      clientName: user.name || user.email,
+      clientEmail: user.email,
+      periodStart: invoice.periodStart,
+      periodEnd: invoice.periodEnd,
+      items,
+      totalAmount: Number(invoice.totalAmount),
+      currency: invoice.currency || 'XAF'
+    });
+    if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+      return res.status(500).json({ error: { message: 'Échec génération PDF', status: 500 } });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=facture_${invoice.invoiceNumber}.pdf`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function createInvoice(req, res, next) {
   try {
     const userId = req.userId;
@@ -391,10 +436,60 @@ async function listAdminInvoices(req, res, next) {
   }
 }
 
+/**
+ * GET /api/admin/invoices/:id
+ * Détail d'une facture (admin peut voir n'importe quelle facture)
+ */
+async function getAdminInvoice(req, res, next) {
+  try {
+    const { id } = req.params;
+    const invoice = await Invoice.findOne({
+      where: { id },
+      include: [
+        { model: InvoiceItem, as: 'InvoiceItems' },
+        { model: User, as: 'User', attributes: ['id', 'email', 'name'] }
+      ]
+    });
+    if (!invoice) {
+      return res.status(404).json({ error: { message: 'Facture introuvable', status: 404 } });
+    }
+    const items = (invoice.InvoiceItems || []).map((item) => ({
+      id: item.id,
+      description: item.description,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      total: Number(item.total)
+    }));
+    res.json({
+      success: true,
+      invoice: {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        periodStart: invoice.periodStart,
+        periodEnd: invoice.periodEnd,
+        totalAmount: Number(invoice.totalAmount),
+        currency: invoice.currency,
+        status: invoice.status,
+        generatedAt: invoice.generatedAt,
+        items,
+        user: invoice.User ? {
+          id: invoice.User.id,
+          email: invoice.User.email,
+          name: invoice.User.name
+        } : null
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listInvoices,
   getInvoice,
+  getAdminInvoice,
   downloadInvoice,
+  downloadAdminInvoice,
   createInvoice,
   payInvoice,
   getPricingRules,

@@ -298,6 +298,10 @@ export const apiService = {
     const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_VMS);
     return response.data;
   },
+  async getAdminVM(id) {
+    const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_VM_BY_ID(id));
+    return response.data;
+  },
   async adminVmAction(vmIdOrDbId, action) {
     const response = await axiosInstance.post(`${API.ENDPOINTS.ADMIN_VMS}/${vmIdOrDbId}/action`, { action });
     return response.data;
@@ -328,6 +332,16 @@ export const apiService = {
     const url = `${API.ENDPOINTS.ADMIN_INVOICES}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     const response = await axiosInstance.get(url);
     return response.data;
+  },
+  async getAdminInvoice(id) {
+    const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_INVOICE_BY_ID(id));
+    return response.data;
+  },
+  async downloadAdminInvoicePdf(id) {
+    const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_INVOICE_DOWNLOAD(id), {
+      responseType: 'blob'
+    });
+    return response;
   },
 };
 

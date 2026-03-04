@@ -122,6 +122,7 @@ router.get('/stats', adminController.getStats);
 
 // ---------- Admin VMs (toutes les VMs plateforme) ----------
 router.get('/vms', adminController.listAllVms);
+router.get('/vms/:id', adminController.getVmDetail);
 router.post('/vms/:id/action', adminController.vmAction);
 
 // ---------- Admin Users ----------
@@ -130,6 +131,8 @@ router.patch('/users/:id', adminController.updateUser);
 
 // ---------- Admin Invoices (all invoices with filters) ----------
 router.get('/invoices', billingController.listAdminInvoices);
+router.get('/invoices/:id/download', billingController.downloadAdminInvoice);
+router.get('/invoices/:id', billingController.getAdminInvoice);
 
 // ---------- Global scale-up rule (single active rule) ----------
 router.get('/scale-up-rule', async (req, res, next) => {

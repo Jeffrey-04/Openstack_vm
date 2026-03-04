@@ -41,6 +41,7 @@ function VMDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isClient = window.location.pathname.startsWith('/client');
+  const isAdmin = !isClient;
   const basePath = isClient ? '/client' : '/admin';
 
   const [vm, setVm] = useState(null);
@@ -60,28 +61,37 @@ function VMDetail() {
 
   useEffect(() => {
     if (!vm || vm.status !== 'BUILD') return;
+    const fetchVm = isAdmin ? () => apiService.getAdminVM(id) : () => apiService.getVM(id);
     const interval = setInterval(() => {
-      apiService.getVM(id).then((res) => {
+      fetchVm().then((res) => {
         const server = res.server;
         if (server) setVm(server);
       }).catch(() => {});
     }, 6000);
     return () => clearInterval(interval);
-  }, [id, vm?.status]);
+  }, [id, vm?.status, isAdmin]);
 
   const loadVm = async () => {
     try {
       setLoading(true);
-      const [serverRes, policyRes, metricsRes, historyRes] = await Promise.all([
-        apiService.getVM(id).catch(() => ({ server: null })),
-        apiService.getVmScalingPolicy(id).catch(() => ({ policy: null })),
-        apiService.getVmMetrics(id).catch(() => ({ metrics: {} })),
-        apiService.getVmScalingHistory(id).catch(() => ({ history: [] }))
-      ]);
-      setVm(serverRes.server || null);
-      setPolicy(policyRes.policy || null);
-      setMetrics(metricsRes.metrics || {});
-      setScalingHistory(historyRes.history || []);
+      if (isAdmin) {
+        const serverRes = await apiService.getAdminVM(id).catch(() => ({ server: null }));
+        setVm(serverRes.server || null);
+        setPolicy(null);
+        setMetrics({});
+        setScalingHistory([]);
+      } else {
+        const [serverRes, policyRes, metricsRes, historyRes] = await Promise.all([
+          apiService.getVM(id).catch(() => ({ server: null })),
+          apiService.getVmScalingPolicy(id).catch(() => ({ policy: null })),
+          apiService.getVmMetrics(id).catch(() => ({ metrics: {} })),
+          apiService.getVmScalingHistory(id).catch(() => ({ history: [] }))
+        ]);
+        setVm(serverRes.server || null);
+        setPolicy(policyRes.policy || null);
+        setMetrics(metricsRes.metrics || {});
+        setScalingHistory(historyRes.history || []);
+      }
     } catch (err) {
       console.error('Load VM detail:', err);
       toast.error('Impossible de charger la VM');
@@ -97,7 +107,11 @@ function VMDetail() {
     }
     try {
       setActionLoading(true);
-      await apiService.vmAction(id, action);
+      if (isAdmin) {
+        await apiService.adminVmAction(id, action);
+      } else {
+        await apiService.vmAction(id, action);
+      }
       toast.success(action === 'reboot' ? 'Redémarrage en cours' : action === 'start' ? 'Démarrage en cours' : 'Arrêt en cours');
       setTimeout(loadVm, 2000);
     } catch (err) {
@@ -205,10 +219,15 @@ function VMDetail() {
       <div className="vm-detail-breadcrumb">
         <Link to={basePath}>Accueil</Link>
         <span className="vm-detail-breadcrumb-sep">/</span>
-        <Link to={`${basePath}/vms`}>Mes VMs</Link>
+        <Link to={`${basePath}/vms`}>{isAdmin ? 'VMs' : 'Mes VMs'}</Link>
         <span className="vm-detail-breadcrumb-sep">/</span>
         <span>{vm.name || vm.id}</span>
       </div>
+      {isAdmin && vm.owner && (
+        <p className="vm-detail-owner">
+          Propriétaire : {vm.owner.name || vm.owner.email || vm.owner.id}
+        </p>
+      )}
 
       <div className="vm-detail-top">
         <div className="vm-detail-card vm-detail-card-os">

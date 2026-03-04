@@ -7,7 +7,7 @@ import './BillingPage.css';
 
 export default function BillingPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'));
   
   const [invoices, setInvoices] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -73,8 +73,8 @@ export default function BillingPage() {
     }
     let cancelled = false;
     setLoadingDetail(true);
-    apiService
-      .getInvoice(selectedId)
+    const fetchInvoice = isAdmin ? () => apiService.getAdminInvoice(selectedId) : () => apiService.getInvoice(selectedId);
+    fetchInvoice()
       .then((res) => {
         if (!cancelled && res.invoice) setDetail(res.invoice);
       })
@@ -85,7 +85,7 @@ export default function BillingPage() {
         if (!cancelled) setLoadingDetail(false);
       });
     return () => { cancelled = true; };
-  }, [selectedId]);
+  }, [selectedId, isAdmin]);
 
   const loadInvoices = async () => {
     try {
@@ -121,7 +121,9 @@ export default function BillingPage() {
 
   const handleDownload = async (id) => {
     try {
-      const res = await apiService.downloadInvoicePdf(id);
+      const res = isAdmin
+        ? await apiService.downloadAdminInvoicePdf(id)
+        : await apiService.downloadInvoicePdf(id);
       const blob = res.data;
       const contentType = (res.headers['content-type'] || '').toLowerCase();
       if (res.status !== 200 || !contentType.includes('pdf')) {
@@ -169,7 +171,8 @@ export default function BillingPage() {
       toast.success('Facture marquée comme payée.');
       await loadInvoices();
       if (selectedId === id) {
-        const res = await apiService.getInvoice(id);
+        const fetchInvoice = isAdmin ? () => apiService.getAdminInvoice(id) : () => apiService.getInvoice(id);
+        const res = await fetchInvoice();
         setDetail(res.invoice || null);
       }
     } catch (err) {
