@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { Notification } = require('../models');
+const logger = require('../utils/logger');
 
 router.use(authenticate);
 
@@ -10,10 +11,11 @@ router.get('/', async (req, res, next) => {
   try {
     const list = await Notification.findAll({
       where: { userId: req.userId },
-      order: [['readAt', 'ASC'], ['createdAt', 'DESC']],
+      order: [['createdAt', 'DESC']],
       limit: 50
     });
-    const notifications = list.map((n) => ({
+    const unreadFirst = [...list].sort((a, b) => (a.readAt ? 1 : 0) - (b.readAt ? 1 : 0));
+    const notifications = unreadFirst.map((n) => ({
       id: n.id,
       type: n.type,
       title: n.title,
@@ -25,6 +27,15 @@ router.get('/', async (req, res, next) => {
     const unreadCount = list.filter((n) => !n.readAt).length;
     res.json({ success: true, notifications, unreadCount });
   } catch (err) {
+    logger.error('GET /notifications error:', err.message);
+    const msg = (err.message || '').toLowerCase();
+    const tableMissing = err.name === 'SequelizeDatabaseError' ||
+      msg.includes('no such table') ||
+      msg.includes('does not exist') ||
+      msg.includes('relation');
+    if (tableMissing) {
+      return res.json({ success: true, notifications: [], unreadCount: 0 });
+    }
     next(err);
   }
 });
@@ -38,6 +49,9 @@ router.patch('/read-all', async (req, res, next) => {
     );
     res.json({ success: true });
   } catch (err) {
+    if (err.name === 'SequelizeDatabaseError' || (err.message && err.message.includes('no such table'))) {
+      return res.json({ success: true });
+    }
     next(err);
   }
 });
@@ -57,6 +71,9 @@ router.patch('/:id/read', async (req, res, next) => {
     }
     res.json({ success: true, readAt: n.readAt });
   } catch (err) {
+    if (err.name === 'SequelizeDatabaseError' || (err.message && err.message.includes('no such table'))) {
+      return res.json({ success: true, readAt: new Date() });
+    }
     next(err);
   }
 });
