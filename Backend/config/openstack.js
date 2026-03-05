@@ -1,4 +1,5 @@
 const axios = require('axios');
+const logger = require('../utils/logger');
 
 // Éviter de spammer les logs quand OpenStack est indisponible (une fois par minute par type)
 const lastConnectionErrorLog = { nova: 0, neutron: 0, glance: 0, keystone: 0 };
@@ -73,10 +74,31 @@ class OpenStackClient {
         }
       };
       if (data) config.data = data;
+      logger.info('[OpenStack] request', {
+        method,
+        url,
+        scopedProject: projectId || '(default)'
+      });
       const response = await axios(config);
+      logger.info('[OpenStack] response', {
+        method,
+        url,
+        scopedProject: projectId || '(default)',
+        status: response.status
+      });
       return response.data;
     } catch (error) {
+      const status = error.response?.status;
+      const body = error.response?.data;
       const msg = error.message || error.code || 'API error';
+      logger.error('[OpenStack] request error', {
+        method,
+        url,
+        scopedProject: projectId || '(default)',
+        status,
+        message: msg,
+        body
+      });
       logConnectionErrorOnce('nova', msg);
       throw error;
     }
@@ -114,13 +136,61 @@ class OpenStackClient {
   }
 
   async getConsoleUrl(serverId, projectId = null) {
-    const result = await this.makeRequest('POST', `${process.env.NOVA_URL}/servers/${serverId}/remote-consoles`, {
+    const url = `${process.env.NOVA_URL}/servers/${serverId}/remote-consoles`;
+    const payload = {
       remote_console: {
         protocol: 'vnc',
         type: 'novnc'
       }
-    }, projectId);
-    return result.remote_console?.url || null;
+    };
+    try {
+      logger.info('[OpenStack] getConsoleUrl try', {
+        serverId,
+        scopedProject: projectId || '(default)'
+      });
+      const result = await this.makeRequest('POST', url, payload, projectId);
+      const consoleUrl = result.remote_console?.url || null;
+      logger.info('[OpenStack] getConsoleUrl success', {
+        serverId,
+        scopedProject: projectId || '(default)',
+        hasUrl: !!consoleUrl
+      });
+      return consoleUrl;
+    } catch (err) {
+      const status = err.response?.status;
+      const body = err.response?.data;
+      logger.error('[OpenStack] getConsoleUrl error', {
+        serverId,
+        scopedProject: projectId || '(default)',
+        status,
+        body
+      });
+      // Si on a un scope projet et que Nova renvoie 404, on tente un fallback en scope admin (projet par défaut)
+      if (projectId && status === 404) {
+        try {
+          logger.info('[OpenStack] getConsoleUrl fallback default-scope', { serverId });
+          const result = await this.makeRequest('POST', url, payload, null);
+          const consoleUrl = result.remote_console?.url || null;
+          logger.info('[OpenStack] getConsoleUrl fallback success', {
+            serverId,
+            scopedProject: '(default)',
+            hasUrl: !!consoleUrl
+          });
+          return consoleUrl;
+        } catch (err2) {
+          const status2 = err2.response?.status;
+          const body2 = err2.response?.data;
+          logger.error('[OpenStack] getConsoleUrl fallback error', {
+            serverId,
+            scopedProject: '(default)',
+            status: status2,
+            body: body2
+          });
+          throw err2;
+        }
+      }
+      throw err;
+    }
   }
 
   async createImageFromServer(serverId, imageName, projectId = null) {

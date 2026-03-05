@@ -6,12 +6,22 @@ const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
 const registerValidation = [
-  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Valid email required'),
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters')
     .matches(/\d/)
-    .withMessage('Password must contain a number')
+    .withMessage('Password must contain a number'),
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ max: 120 })
+    .withMessage('Name too long')
+    .matches(/^[^<>]*$/)
+    .withMessage('Name contains invalid characters')
 ];
 
 const loginValidation = [

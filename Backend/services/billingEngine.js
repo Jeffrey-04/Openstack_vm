@@ -119,9 +119,14 @@ async function calculateInvoiceForPeriod(userId, periodStart, periodEnd) {
   return { totalAmount, items, currency: DEFAULT_CURRENCY };
 }
 
+const DEFAULT_FLAVOR_SPECS = { vcpus: 1, ramMb: 1024, diskGb: 20 };
+
 /** Get flavor vcpus, ram (MB), disk (GB) from OpenStack (with simple cache to avoid hammering API). */
 const flavorCache = new Map();
 async function getFlavorSpecs(flavorId) {
+  if (!flavorId) {
+    return { ...DEFAULT_FLAVOR_SPECS };
+  }
   if (flavorCache.has(flavorId)) {
     return flavorCache.get(flavorId);
   }
@@ -136,7 +141,7 @@ async function getFlavorSpecs(flavorId) {
     flavorCache.set(flavorId, specs);
     return specs;
   } catch (err) {
-    return { vcpus: 1, ramMb: 512, diskGb: 20 };
+    return { ...DEFAULT_FLAVOR_SPECS };
   }
 }
 
@@ -270,10 +275,9 @@ async function runBillingJobForSlice(sliceEnd) {
       for (const { start: intStart, end: intEnd } of intervals) {
         const segments = await getFlavorSegmentsForInterval(o.instanceId, intStart, intEnd, flavorAtEnd);
         for (const seg of segments) {
-          if (!seg.flavorId) continue;
           const segHours = (seg.end.getTime() - seg.start.getTime()) / (1000 * 60 * 60);
           if (segHours <= 0) continue;
-          amount += await calculateSliceAmount(seg.flavorId, segHours);
+          amount += await calculateSliceAmount(seg.flavorId || null, segHours);
         }
       }
       amount = Math.round(amount * 100) / 100;
@@ -366,7 +370,29 @@ async function runDailyPaymentJob() {
     );
     marked += n;
   }
-  return { usersProcessed: users.length, invoicesMarkedPaid: marked };
+  // After processing automatic payments, deactivate users with 2+ unpaid invoices (pending or overdue)
+  const unpaidInvoices = await Invoice.findAll({
+    where: {
+      status: { [Op.in]: ['pending', 'overdue'] }
+    },
+    attributes: ['userId'],
+    raw: true
+  });
+  const unpaidCountByUser = {};
+  for (const inv of unpaidInvoices) {
+    if (!inv.userId) continue;
+    unpaidCountByUser[inv.userId] = (unpaidCountByUser[inv.userId] || 0) + 1;
+  }
+  const toDisable = Object.entries(unpaidCountByUser)
+    .filter(([, count]) => count >= 2)
+    .map(([userId]) => userId);
+  if (toDisable.length > 0) {
+    await User.update(
+      { isActive: false },
+      { where: { id: { [Op.in]: toDisable } } }
+    );
+  }
+  return { usersProcessed: users.length, invoicesMarkedPaid: marked, usersDisabled: toDisable.length || 0 };
 }
 
 module.exports = {
