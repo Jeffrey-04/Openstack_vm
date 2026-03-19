@@ -1,24 +1,38 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import apiService from '../services/api';
 import {
-  LayoutDashboard,
-  Server,
-  ShoppingCart,
-  PlusCircle,
-  Settings,
-  CreditCard,
-  Box,
-  TrendingUp,
-  Users,
-  Cloud,
-  Menu,
-  Search,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  Divider,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
+  Input
+} from '../components/ui';
+import apiService from '../services/api';
+import OpenstackStatusBadge from '../components/OpenstackStatusBadge';
+import {
   Bell,
+  Box,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  Cloud,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  PlusCircle,
+  Search,
+  Server,
+  Settings,
+  ShoppingCart,
+  TrendingUp,
+  Users
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './DashboardLayout.css';
@@ -72,22 +86,6 @@ const SEGMENT_LABELS = {
   admin: { '': 'Overview', vms: 'VMs', create: 'Créer une VM', 'vm-templates': 'Modèles VM', 'scale-up-rule': 'Règle scale up', users: 'Utilisateurs', billing: 'Facturation', settings: 'Paramètres' },
 };
 
-function HealthIndicator() {
-  const [status, setStatus] = useState(null);
-  useEffect(() => {
-    apiService.getOpenstackStatus()
-      .then((res) => setStatus(res.connected ? 'ok' : 'error'))
-      .catch(() => setStatus('error'));
-  }, []);
-  if (status === null) return null;
-  return (
-    <div className={`sidebar-health ${status === 'ok' ? 'sidebar-health-ok' : 'sidebar-health-error'}`} title={status === 'ok' ? 'OpenStack connecté' : 'Service indisponible'}>
-      <span className="sidebar-health-dot" aria-hidden="true" />
-      <span className="sidebar-health-label">{status === 'ok' ? 'OpenStack OK' : 'Hors ligne'}</span>
-    </div>
-  );
-}
-
 const SEARCH_RESULTS_MAX = 8;
 
 function filterVmsByQuery(servers, query) {
@@ -104,13 +102,14 @@ function filterVmsByQuery(servers, query) {
 export default function DashboardLayout({ type = 'client' }) {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notifUnreadCount, setNotifUnreadCount] = useState(0);
-  const [notifLoading, setNotifLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -137,6 +136,23 @@ export default function DashboardLayout({ type = 'client' }) {
   const userWrapRef = useRef(null);
   const notifWrapRef = useRef(null);
   useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setMobileSidebarOpen(false);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
     const close = (e) => {
       if (userWrapRef.current && !userWrapRef.current.contains(e.target)) setUserMenuOpen(false);
       if (notifWrapRef.current && !notifWrapRef.current.contains(e.target)) setNotifOpen(false);
@@ -147,7 +163,6 @@ export default function DashboardLayout({ type = 'client' }) {
   }, []);
 
   const loadNotifications = useCallback(async () => {
-    setNotifLoading(true);
     try {
       const res = await apiService.getNotifications();
       setNotifications(res.notifications || []);
@@ -155,8 +170,6 @@ export default function DashboardLayout({ type = 'client' }) {
     } catch {
       setNotifications([]);
       setNotifUnreadCount(0);
-    } finally {
-      setNotifLoading(false);
     }
   }, []);
 
@@ -178,14 +191,6 @@ export default function DashboardLayout({ type = 'client' }) {
       await apiService.markNotificationRead(id);
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n)));
       setNotifUnreadCount((c) => Math.max(0, c - 1));
-    } catch (_) {}
-  };
-
-  const handleMarkAllNotifsRead = async () => {
-    try {
-      await apiService.markAllNotificationsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, readAt: n.readAt || new Date().toISOString() })));
-      setNotifUnreadCount(0);
     } catch (_) {}
   };
 
@@ -223,241 +228,212 @@ export default function DashboardLayout({ type = 'client' }) {
   }, [searchLoading, searchQuery]);
 
   return (
-    <div className="dashboard-layout">
-      <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : 'collapsed'} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-        <div className="sidebar-header">
-          <Link to={type === 'client' ? '/client' : '/admin'} className="sidebar-brand">
-            <span className="sidebar-brand-icon"><Cloud size={24} /></span>
-            <div className="sidebar-brand-text-wrap">
-              <span className="sidebar-brand-text">VM Marketplace</span>
-              <span className="sidebar-brand-tagline">VPS à la demande</span>
-            </div>
-          </Link>
-          <button
-            type="button"
-            className="sidebar-collapse-toggle"
-            onClick={() => setSidebarOpen((o) => !o)}
-            aria-label={sidebarOpen ? 'Réduire le menu' : 'Ouvrir le menu'}
-          >
-            {sidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
-          </button>
-        </div>
-        <nav className="sidebar-nav">
-          {sidebarItems.map((item) =>
-            item.external ? (
-              <a
-                key={item.path}
-                href={item.path}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="sidebar-item"
-              >
-                <span className="sidebar-item-icon">{React.createElement(ICON_MAP[item.icon] || Settings, { size: 18 })}</span>
-                <span className="sidebar-item-label">{item.label}</span>
-              </a>
-            ) : (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}
-              >
-                <span className="sidebar-item-icon">{React.createElement(ICON_MAP[item.icon] || Settings, { size: 18 })}</span>
-                <span className="sidebar-item-label">{item.label}</span>
-              </Link>
-            )
-          )}
-        </nav>
-        <div className="sidebar-footer">
-          <HealthIndicator />
-          <div className="sidebar-user">
-            <span className="sidebar-user-avatar">
-              {user?.name?.[0] || user?.email?.[0] || '?'}
-            </span>
-            <span className="sidebar-user-name">{user?.name || user?.email || 'User'}</span>
-          </div>
-          <button type="button" className="sidebar-logout" onClick={logout}>
-            Déconnexion
-          </button>
-        </div>
+    <div className="dl-shell" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '300px 1fr', minHeight: '100vh' }}>
+      {isMobile && mobileSidebarOpen && (
+        <div
+          aria-hidden="true"
+          onClick={() => setMobileSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.45)',
+            zIndex: 40
+          }}
+        />
+      )}
+      <aside
+        className="dl-sidebar"
+        style={{
+          borderRight: isMobile ? 'none' : '1px solid #e2e8f0',
+          padding: '1rem',
+          position: isMobile ? 'fixed' : 'sticky',
+          top: 0,
+          left: 0,
+          width: 300,
+          height: '100vh',
+          zIndex: 50,
+          // Fallback visuel si le CSS du layout n'est pas chargé.
+          background: 'linear-gradient(180deg, #0f172a 0%, #111827 100%)',
+          transform: isMobile ? (mobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+          transition: 'transform 0.2s ease'
+        }}
+      >
+        <Card
+          shadow="none"
+          radius="sm"
+          className="dl-sidebar-card"
+          style={{
+            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <CardBody style={{ gap: '1rem' }}>
+            <Link to={type === 'client' ? '/client' : '/admin'} style={{ display: 'flex', alignItems: 'center', gap: '.6rem', textDecoration: 'none', color: '#e2e8f0', fontWeight: 700 }}>
+              <Cloud size={20} />
+              VM Marketplace
+            </Link>
+            <Divider />
+            <nav style={{ display: 'grid', gap: '.35rem' }}>
+              {sidebarItems.map((item) => {
+                const IconComp = ICON_MAP[item.icon] || Settings;
+                const active = !item.external && isActive(item.path);
+                if (item.external) {
+                  return (
+                    <a key={item.path} href={item.path} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                      <Button fullWidth variant="light" startContent={<IconComp size={16} />} style={{ justifyContent: 'flex-start', color: '#cbd5e1' }} onPress={() => setMobileSidebarOpen(false)}>
+                        {item.label}
+                      </Button>
+                    </a>
+                  );
+                }
+                return (
+                  <Link key={item.path} to={item.path} style={{ textDecoration: 'none' }} onClick={() => setMobileSidebarOpen(false)}>
+                    <Button
+                      fullWidth
+                      color={active ? 'primary' : 'default'}
+                      variant={active ? 'solid' : 'light'}
+                      startContent={<IconComp size={16} />}
+                      style={{ justifyContent: 'flex-start', color: active ? '#fff' : '#cbd5e1', background: active ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'transparent' }}
+                    >
+                      {item.label}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </nav>
+            <Divider />
+            <OpenstackStatusBadge />
+            <Button color="danger" variant="light" startContent={<LogOut size={16} />} onClick={logout}>
+              Déconnexion
+            </Button>
+          </CardBody>
+        </Card>
       </aside>
 
-      <div className="dashboard-main">
-        <header className="dashboard-topbar">
-          <button
-            type="button"
-            className="topbar-menu-toggle"
-            onClick={() => setMobileMenuOpen((o) => !o)}
-            aria-label="Menu"
-          >
-            <Menu size={24} />
-          </button>
-          <div className="topbar-breadcrumb topbar-breadcrumb-left">
-            <nav className="breadcrumb" aria-label="Fil d'Ariane">
-              {breadcrumbItems.map((item, i) => (
-                <span key={item.path}>
-                  {i > 0 && <span className="breadcrumb-sep"> › </span>}
-                  {i === breadcrumbItems.length - 1 ? (
-                    <span className="breadcrumb-current">{item.label}</span>
-                  ) : (
-                    <Link to={item.path} className="breadcrumb-link">{item.label}</Link>
-                  )}
-                </span>
-              ))}
-            </nav>
-            <h1 className="topbar-title">{title}</h1>
-            {subtitle && <p className="topbar-subtitle">{subtitle}</p>}
-          </div>
-          <div className="topbar-search-wrap" ref={searchWrapRef}>
-            <Search size={18} className="topbar-search-icon" aria-hidden="true" />
-            <input
-              type="search"
-              className="topbar-search"
-              placeholder="Rechercher une VM..."
-              aria-label="Rechercher une VM par nom ou ID"
-              aria-expanded={searchOpen}
-              aria-autocomplete="list"
-              value={searchQuery}
-              onFocus={() => {
-                loadSearchCache();
-                if (searchQuery.trim()) setSearchOpen(true);
-              }}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setSearchOpen(false);
-                  e.target.blur();
-                }
-              }}
-            />
-            {searchOpen && searchQuery.trim() && (
-              <div className="topbar-search-dropdown" role="listbox">
-                {searchLoading ? (
-                  <p className="topbar-search-dropdown-empty">Chargement...</p>
-                ) : searchResults.length === 0 ? (
-                  <p className="topbar-search-dropdown-empty">Aucune VM trouvée</p>
-                ) : (
-                  <ul className="topbar-search-results" role="listbox">
-                    {searchResults.map((vm) => (
-                      <li key={vm.id || vm.dbId}>
+      <main style={{ padding: isMobile ? '0.75rem' : '1.1rem 1.4rem' }}>
+        <Card
+          shadow="none"
+          radius="sm"
+          className="dl-topbar-card"
+          style={{
+            marginBottom: '1rem',
+            background: 'rgba(255,255,255,0.9)',
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          <CardBody style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto auto', gap: '1rem', alignItems: 'center' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.5rem' }}>
+                <div className="dl-breadcrumb">
+                  {breadcrumbItems.map((item, i) => (
+                    <span key={item.path}>
+                      {i > 0 && ' / '}
+                      {i === breadcrumbItems.length - 1 ? item.label : <Link to={item.path} style={{ color: '#4f46e5' }}>{item.label}</Link>}
+                    </span>
+                  ))}
+                </div>
+                {isMobile && (
+                  <Button isIconOnly variant="flat" aria-label="Ouvrir le menu" onPress={() => setMobileSidebarOpen((v) => !v)}>
+                    <Menu size={18} />
+                  </Button>
+                )}
+              </div>
+              <h2 className="dl-top-title">{title}</h2>
+              <p className="dl-top-subtitle">{subtitle}</p>
+            </div>
+
+            <div ref={searchWrapRef} style={{ minWidth: isMobile ? 'auto' : 320, width: '100%', position: 'relative' }}>
+              <Input
+                startContent={<Search size={16} />}
+                placeholder="Rechercher une VM..."
+                value={searchQuery}
+                onFocus={() => {
+                  loadSearchCache();
+                  if (searchQuery.trim()) setSearchOpen(true);
+                }}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchOpen && searchQuery.trim() && (
+                <Card style={{ position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 30, border: '1px solid #dbe3f2', background: '#fff' }}>
+                  <CardBody style={{ maxHeight: 260, overflow: 'auto', gap: '.35rem' }}>
+                    {searchLoading ? (
+                      <span style={{ color: '#64748b' }}>Chargement...</span>
+                    ) : searchResults.length === 0 ? (
+                      <span style={{ color: '#64748b' }}>Aucune VM trouvée</span>
+                    ) : (
+                      searchResults.map((vm) => (
                         <Link
+                          key={vm.id || vm.dbId}
                           to={`${basePath}/vms/${vm.id}`}
-                          className="topbar-search-result-item"
-                          role="option"
                           onClick={() => {
                             setSearchQuery('');
                             setSearchOpen(false);
                           }}
+                          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: '#0f172a', padding: '.35rem .2rem' }}
                         >
-                          <Server size={16} className="topbar-search-result-icon" />
-                          <span className="topbar-search-result-name">{vm.name || vm.id}</span>
-                          <span className="topbar-search-result-status">{vm.status === 'ACTIVE' ? 'Actif' : vm.status === 'SHUTOFF' ? 'Arrêté' : vm.status || '—'}</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.35rem' }}>
+                            <Server size={14} />
+                            {vm.name || vm.id}
+                          </span>
+                          <Badge color={vm.status === 'ACTIVE' ? 'success' : 'default'} variant="flat" size="sm">
+                            {vm.status || 'N/A'}
+                          </Badge>
                         </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="topbar-actions">
-            <div className="topbar-notif-wrap" ref={notifWrapRef}>
-              <button
-                type="button"
-                className="topbar-icon-btn topbar-notif-btn"
-                aria-label="Notifications"
-                aria-expanded={notifOpen}
-                onClick={() => { setNotifOpen((o) => !o); setUserMenuOpen(false); }}
-              >
-                <Bell size={20} />
-                {notifUnreadCount > 0 && (
-                  <span className="topbar-notif-badge" aria-hidden="true">{notifUnreadCount > 99 ? '99+' : notifUnreadCount}</span>
-                )}
-              </button>
-              {notifOpen && (
-                <div className="topbar-dropdown topbar-dropdown-notif" role="menu">
-                  <div className="topbar-notif-header">
-                    <span>Notifications</span>
-                    {notifications.some((n) => !n.readAt) && (
-                      <button type="button" className="topbar-notif-read-all" onClick={handleMarkAllNotifsRead}>
-                        Tout marquer lu
-                      </button>
+                      ))
                     )}
-                  </div>
-                  {notifLoading && notifications.length === 0 ? (
-                    <p className="topbar-dropdown-empty">Chargement...</p>
-                  ) : notifications.length === 0 ? (
-                    <p className="topbar-dropdown-empty">Aucune notification</p>
-                  ) : (
-                    <ul className="topbar-notif-list">
-                      {notifications.map((n) => (
-                        <li key={n.id}>
-                          {n.link ? (
-                            <Link
-                              to={n.link}
-                              className={`topbar-notif-item ${!n.readAt ? 'topbar-notif-unread' : ''}`}
-                              onClick={() => { handleMarkNotifRead(n.id); setNotifOpen(false); }}
-                            >
-                              <span className="topbar-notif-item-title">{n.title}</span>
-                              {n.message && <span className="topbar-notif-item-msg">{n.message}</span>}
-                            </Link>
-                          ) : (
-                            <button
-                              type="button"
-                              className={`topbar-notif-item ${!n.readAt ? 'topbar-notif-unread' : ''}`}
-                              onClick={() => handleMarkNotifRead(n.id)}
-                            >
-                              <span className="topbar-notif-item-title">{n.title}</span>
-                              {n.message && <span className="topbar-notif-item-msg">{n.message}</span>}
-                            </button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                  </CardBody>
+                </Card>
               )}
             </div>
-            <div className="topbar-user-wrap" ref={userWrapRef}>
-              <button
-                type="button"
-                className="topbar-user topbar-user-dropdown"
-                aria-expanded={userMenuOpen}
-                aria-haspopup="true"
-                onClick={() => { setUserMenuOpen((o) => !o); setNotifOpen(false); }}
-              >
-                <span className="topbar-user-avatar">
-                  {user?.name?.[0] || user?.email?.[0] || '?'}
-                </span>
-                <div>
-                  <span className="topbar-user-name">{user?.name || user?.email || 'User'}</span>
-                  <span className="topbar-user-role">{type === 'admin' ? 'Admin' : 'Client'}</span>
-                </div>
-                <ChevronDown size={16} className="topbar-user-chevron" />
-              </button>
-              {userMenuOpen && (
-                <div className="topbar-dropdown topbar-dropdown-user" role="menu">
-                  <Link to={type === 'client' ? '/client/settings' : '/admin/settings'} className="topbar-dropdown-item" onClick={() => setUserMenuOpen(false)}>
-                    <Settings size={16} /> Paramètres
-                  </Link>
-                  <button type="button" className="topbar-dropdown-item topbar-dropdown-item-danger" onClick={() => { setUserMenuOpen(false); logout(); }}>
-                    <LogOut size={16} /> Déconnexion
-                  </button>
-                </div>
-              )}
+
+            <div className="dl-topbar-actions" style={{ justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
+              <OpenstackStatusBadge />
+              <div ref={notifWrapRef}>
+                <Dropdown isOpen={notifOpen} onOpenChange={setNotifOpen}>
+                  <DropdownTrigger>
+                    <Button isIconOnly variant="light" aria-label="Notifications">
+                      <Badge content={notifUnreadCount > 0 ? (notifUnreadCount > 99 ? '99+' : notifUnreadCount) : null} color="danger">
+                        <Bell size={18} />
+                      </Badge>
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu aria-label="Notifications" disabledKeys={[]}>
+                    {notifications.length === 0 && (
+                      <DropdownItem key="empty">Aucune notification</DropdownItem>
+                    )}
+                    {notifications.map((n) => (
+                      <DropdownItem key={n.id} onPress={() => handleMarkNotifRead(n.id)}>
+                        {n.title}
+                      </DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                </Dropdown>
+              </div>
+              <div ref={userWrapRef}>
+                <Dropdown isOpen={userMenuOpen} onOpenChange={setUserMenuOpen}>
+                  <DropdownTrigger>
+                    <Button variant="light" startContent={<Avatar size="sm" name={user?.name?.[0] || user?.email?.[0] || '?'} />}>
+                      {user?.name || user?.email || 'User'}
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu aria-label="User menu">
+                    <DropdownItem key="settings">
+                      <Link to={type === 'client' ? '/client/settings' : '/admin/settings'} style={{ textDecoration: 'none', color: 'inherit' }}>Paramètres</Link>
+                    </DropdownItem>
+                    <DropdownItem key="logout" className="text-danger" color="danger" onPress={logout}>
+                      Déconnexion
+                    </DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+              </div>
             </div>
-          </div>
-        </header>
-        <div className="dashboard-content">
+          </CardBody>
+        </Card>
+        <div>
           <Outlet />
         </div>
-      </div>
-
-      <div
-        className={`dashboard-overlay ${mobileMenuOpen ? 'visible' : ''}`}
-        onClick={() => setMobileMenuOpen(false)}
-        aria-hidden="true"
-        role="presentation"
-      />
+      </main>
     </div>
   );
 }

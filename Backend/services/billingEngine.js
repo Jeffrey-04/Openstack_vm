@@ -5,10 +5,11 @@ const openstack = require('../config/openstack');
 const logger = require('../utils/logger');
 
 const DEFAULT_CURRENCY = 'XAF';
-const SLICE_MINUTES = 30;
+const SLICE_MINUTES = 15;
+const OVERDUE_AFTER_DAYS = Number(process.env.BILLING_OVERDUE_AFTER_DAYS || 7);
 
 /**
- * Facturation par tranche de 30 min (slice).
+ * Facturation par tranche de 15 min (slice).
  * Montant = durationHours × ( vcpus × cpuPerHour + ramGb × ramPerGbHour + diskGb × storagePerGbHour ).
  * Tarifs par défaut (table pricing_rules, modifiables en admin) : cpu 200 XAF/vCPU/h, ram 50 XAF/GB/h, storage 0.01 XAF/GB/h.
  * Ex. 30 min (0,5 h), 1 vCPU, 1 GB RAM, 20 GB disque : 0,5 × (200 + 50 + 0,2) = 125,1 XAF.
@@ -28,50 +29,53 @@ async function getPricingRules(effectiveDate = new Date()) {
 }
 
 function calculateConsumptionCost(metrics, pricingRules) {
-  const breakdown = {};
-  let total = 0;
   const cpuPerHour = Number(pricingRules.cpu?.unitPrice ?? 200);
   const ramPerGbHour = Number(pricingRules.ram?.unitPrice ?? 50);
-  const storagePerGbMonth = Number(pricingRules.storage?.unitPrice ?? 0.5);
-  const uptimeHours = Number(metrics.uptimeHours ?? 0);
-  const cpuUtil = Number(metrics.cpu_util ?? 0) / 100;
-  const ramGb = Number(metrics.ram_gb ?? 0);
-  const diskGb = Number(metrics.disk_gb ?? 0);
-  const cpuCost = uptimeHours * cpuUtil * (metrics.vcpus ?? 1) * cpuPerHour;
-  breakdown.cpu = Math.round(cpuCost * 100) / 100;
-  total += breakdown.cpu;
-  const ramCost = uptimeHours * ramGb * ramPerGbHour;
-  breakdown.memory = Math.round(ramCost * 100) / 100;
-  total += breakdown.memory;
-  const storageCost = diskGb * storagePerGbMonth * (uptimeHours / 730);
-  breakdown.storage = Math.round(storageCost * 100) / 100;
-  total += breakdown.storage;
-  return { total: Math.round(total * 100) / 100, breakdown, currency: DEFAULT_CURRENCY };
-}
-
-function calculateHourlyCost(metrics, pricingRules) {
+  const storagePerGbHour = Number(pricingRules.storage?.unitPrice ?? 0.01);
   const uptimeHours = Number(metrics.uptimeHours ?? 0);
   const vcpus = Number(metrics.vcpus ?? 1);
   const ramGb = Number(metrics.ram_gb ?? 0);
   const diskGb = Number(metrics.disk_gb ?? 0);
-  const cpuPerHour = Number(pricingRules.cpu?.unitPrice ?? 200);
-  const ramPerGbHour = Number(pricingRules.ram?.unitPrice ?? 50);
-  const storagePerGbHour = Number(pricingRules.storage?.unitPrice ?? 0.01);
-  const total =
-    uptimeHours * (
-      vcpus * cpuPerHour +
-      ramGb * ramPerGbHour +
-      diskGb * storagePerGbHour
-    );
-  return {
-    total: Math.round(total * 100) / 100,
-    breakdown: {
-      cpu: Math.round(uptimeHours * vcpus * cpuPerHour * 100) / 100,
-      memory: Math.round(uptimeHours * ramGb * ramPerGbHour * 100) / 100,
-      storage: Math.round(uptimeHours * diskGb * storagePerGbHour * 100) / 100
-    },
-    currency: DEFAULT_CURRENCY
+  const cpuUtilPercent = Number(metrics.cpu_util ?? 100);
+  const cpuFactor = Number.isFinite(cpuUtilPercent)
+    ? Math.max(0, Math.min(100, cpuUtilPercent)) / 100
+    : 1;
+  const breakdown = {
+    cpu: Math.round(uptimeHours * vcpus * cpuPerHour * cpuFactor * 100) / 100,
+    memory: Math.round(uptimeHours * ramGb * ramPerGbHour * 100) / 100,
+    storage: Math.round(uptimeHours * diskGb * storagePerGbHour * 100) / 100
   };
+  const total = breakdown.cpu + breakdown.memory + breakdown.storage;
+  return { total: Math.round(total * 100) / 100, breakdown, currency: DEFAULT_CURRENCY };
+}
+
+function calculateHourlyCost(metrics, pricingRules) {
+  // Kept for compatibility: now delegates to unified cost formula.
+  return calculateConsumptionCost(metrics, pricingRules);
+}
+
+function getDurationHours(start, end) {
+  return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60));
+}
+
+async function getEffectiveUptimeHours(vm, periodStart, periodEnd) {
+  if (!vm?.instanceId || !vm?.userId) return 0;
+  const runtimes = await VmRuntime.findAll({
+    where: {
+      instanceId: vm.instanceId,
+      userId: vm.userId,
+      startedAt: { [Op.lt]: periodEnd },
+      [Op.or]: [{ stoppedAt: null }, { stoppedAt: { [Op.gt]: periodStart } }]
+    }
+  });
+  let total = 0;
+  for (const rt of runtimes) {
+    const start = new Date(Math.max(new Date(rt.startedAt).getTime(), periodStart.getTime()));
+    const stopTs = rt.stoppedAt ? new Date(rt.stoppedAt).getTime() : periodEnd.getTime();
+    const end = new Date(Math.min(stopTs, periodEnd.getTime()));
+    total += getDurationHours(start, end);
+  }
+  return total;
 }
 
 async function aggregateMetricsForVM(vmId, periodStart, periodEnd) {
@@ -87,15 +91,17 @@ async function aggregateMetricsForVM(vmId, periodStart, periodEnd) {
     byType[u.metricType].push(Number(u.value));
   }
   const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
-  const uptimeHours = (end - start) / (1000 * 60 * 60);
+  const vm = await VM.findByPk(vmId);
+  const uptimeHours = await getEffectiveUptimeHours(vm, start, end);
+  const specs = await getFlavorSpecs(vm?.flavorId || null);
   return {
     uptimeHours,
     cpu_util: avg(byType.cpu_util || []),
     memory_usage: avg(byType.memory_usage || []),
     disk_usage: avg(byType.disk_usage || []),
-    vcpus: 1,
-    ram_gb: 2,
-    disk_gb: 20
+    vcpus: specs.vcpus,
+    ram_gb: specs.ramMb / 1024,
+    disk_gb: specs.diskGb
   };
 }
 
@@ -107,12 +113,14 @@ async function calculateInvoiceForPeriod(userId, periodStart, periodEnd) {
   let totalAmount = 0;
   for (const vm of vms) {
     const metrics = await aggregateMetricsForVM(vm.id, periodStart, periodEnd);
-    const cost = calculateHourlyCost(metrics, pricingRules);
+    if (metrics.uptimeHours <= 0) continue;
+    const cost = calculateConsumptionCost(metrics, pricingRules);
+    if (cost.total <= 0) continue;
     totalAmount += cost.total;
     items.push({
-      description: `VM ${vm.instanceId} - Compute`,
+      description: `VM ${vm.name || vm.instanceId} - Compute`,
       quantity: metrics.uptimeHours,
-      unitPrice: cost.total / (metrics.uptimeHours || 1),
+      unitPrice: cost.total / metrics.uptimeHours,
       total: cost.total
     });
   }
@@ -146,17 +154,32 @@ async function getFlavorSpecs(flavorId) {
 }
 
 /** Cost for a given duration (hours) based on flavor and pricing rules. */
-async function calculateSliceAmount(flavorId, durationHours) {
+async function calculateSliceAmount(flavorId, durationHours, options = {}) {
   const rules = await getPricingRules(new Date());
   const specs = await getFlavorSpecs(flavorId);
-  const cpuPerHour = Number(rules.cpu?.unitPrice ?? 200);
-  const ramPerGbHour = Number(rules.ram?.unitPrice ?? 50);
-  const storagePerGbHour = Number(rules.storage?.unitPrice ?? 0.01);
-  const ramGb = specs.ramMb / 1024;
-  const total =
-    durationHours *
-    (specs.vcpus * cpuPerHour + ramGb * ramPerGbHour + specs.diskGb * storagePerGbHour);
-  return Math.round(total * 100) / 100;
+  const metrics = {
+    uptimeHours: durationHours,
+    cpu_util: Number(options.cpuUtilPercent),
+    vcpus: specs.vcpus,
+    ram_gb: specs.ramMb / 1024,
+    disk_gb: specs.diskGb
+  };
+  return calculateConsumptionCost(metrics, rules).total;
+}
+
+async function getAvgCpuUtilForVmInRange(vmId, start, end) {
+  const rows = await ResourceUsage.findAll({
+    where: {
+      vmId,
+      metricType: 'cpu_util',
+      timestamp: { [Op.between]: [start, end] }
+    },
+    attributes: ['value']
+  });
+  if (!rows.length) return null;
+  const values = rows.map((r) => Number(r.value)).filter((v) => Number.isFinite(v));
+  if (!values.length) return null;
+  return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
 /** Last 30-min slice boundary ending at or before `now`. */
@@ -193,6 +216,22 @@ async function getRuntimeOverlapsForSlice(sliceStart, sliceEnd) {
     byKey[key].intervals.push({ start, end });
   }
   return Object.values(byKey);
+}
+
+async function resolveVmDisplayName(vm, projectId = null) {
+  if (vm?.name && String(vm.name).trim()) return vm.name;
+  if (!vm?.instanceId) return null;
+  try {
+    const data = await openstack.getServer(vm.instanceId, projectId);
+    const server = data?.server ?? data;
+    const resolved = server?.name ? String(server.name).trim() : null;
+    if (resolved && resolved !== vm.name) {
+      await vm.update({ name: resolved });
+    }
+    return resolved;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -251,7 +290,7 @@ async function runBillingJobForSlice(sliceEnd) {
     byUser[o.userId].push(o);
   }
 
-  const MIN_USAGE_HOURS_FOR_INVOICE = 0.5; // 30 min d'utilisation effective pour générer une facture (éviter factures 0 FCFA)
+  const MIN_USAGE_HOURS_FOR_INVOICE = 1 / 60; // 1 min d'utilisation effective minimum
   let invoicesCreated = 0;
   for (const [userId, userOverlaps] of Object.entries(byUser)) {
     const existing = await Invoice.findOne({
@@ -261,23 +300,34 @@ async function runBillingJobForSlice(sliceEnd) {
 
     const totalDurationHours = userOverlaps.reduce((sum, o) => sum + (o.durationHours || 0), 0);
     if (totalDurationHours < MIN_USAGE_HOURS_FOR_INVOICE) {
-      logger.info('Billing job: skip invoice (usage < 30 min)', { userId, totalDurationHours });
+      logger.info('Billing job: skip invoice (usage below minimum)', { userId, totalDurationHours });
       continue;
     }
 
     const slices = [];
     let totalAmount = 0;
     for (const o of userOverlaps) {
-      const vm = await VM.findOne({ where: { instanceId: o.instanceId, userId: o.userId } });
+      const vm = await VM.findOne({
+        where: { instanceId: o.instanceId, userId: o.userId },
+        include: [{ model: User, attributes: ['openstackProjectId'] }]
+      });
+      if (!vm) {
+        logger.warn('Billing job: VM missing in DB, skipping overlap', { userId: o.userId, instanceId: o.instanceId });
+        continue;
+      }
+      const displayName = await resolveVmDisplayName(vm, vm.User?.openstackProjectId || null);
       const flavorAtEnd = vm?.flavorId || null;
       let amount = 0;
       const intervals = o.intervals || [];
+      let segmentsCount = 0;
       for (const { start: intStart, end: intEnd } of intervals) {
         const segments = await getFlavorSegmentsForInterval(o.instanceId, intStart, intEnd, flavorAtEnd);
         for (const seg of segments) {
           const segHours = (seg.end.getTime() - seg.start.getTime()) / (1000 * 60 * 60);
           if (segHours <= 0) continue;
-          amount += await calculateSliceAmount(seg.flavorId || null, segHours);
+          const avgCpuUtil = await getAvgCpuUtilForVmInRange(vm.id, seg.start, seg.end);
+          amount += await calculateSliceAmount(seg.flavorId || null, segHours, { cpuUtilPercent: avgCpuUtil });
+          segmentsCount += 1;
         }
       }
       amount = Math.round(amount * 100) / 100;
@@ -285,11 +335,18 @@ async function runBillingJobForSlice(sliceEnd) {
       slices.push({
         userId: o.userId,
         instanceId: o.instanceId,
+        vmName: displayName || vm?.name || null,
         sliceStart,
         sliceEnd,
         amount,
-        durationHours: o.durationHours
+        durationHours: o.durationHours,
+        segmentsCount
       });
+    }
+
+    if (totalAmount <= 0) {
+      logger.info('Billing job: skip invoice (totalAmount <= 0)', { userId, totalAmount, sliceStart, sliceEnd });
+      continue;
     }
 
     const count = await Invoice.count();
@@ -317,7 +374,7 @@ async function runBillingJobForSlice(sliceEnd) {
       const unitPrice = s.durationHours > 0 ? s.amount / s.durationHours : 0;
       await InvoiceItem.create({
         invoiceId: invoice.id,
-        description: `VM ${s.instanceId} - Compute (${(s.durationHours * 60).toFixed(0)} min)`,
+        description: `VM ${s.vmName || s.instanceId} - Compute (${(s.durationHours * 60).toFixed(0)} min, ${s.segmentsCount || 1} segment(s) de flavor)`,
         quantity: s.durationHours,
         unitPrice: Math.round(unitPrice * 100) / 100,
         total: Math.round(s.amount * 100) / 100
@@ -350,6 +407,19 @@ async function runDailyPaymentJob() {
   const todayEnd = new Date(todayStart);
   todayEnd.setDate(todayEnd.getDate() + 1);
 
+  // Move old pending invoices to overdue status
+  const overdueThreshold = new Date();
+  overdueThreshold.setDate(overdueThreshold.getDate() - OVERDUE_AFTER_DAYS);
+  await Invoice.update(
+    { status: 'overdue' },
+    {
+      where: {
+        status: 'pending',
+        generatedAt: { [Op.lt]: overdueThreshold }
+      }
+    }
+  );
+
   const users = await User.findAll({
     where: { paymentMode: 'auto' },
     attributes: ['id']
@@ -363,7 +433,7 @@ async function runDailyPaymentJob() {
       {
         where: {
           userId: u.id,
-          status: 'pending',
+          status: { [Op.in]: ['pending', 'overdue'] },
           generatedAt: { [Op.gte]: todayStart, [Op.lt]: todayEnd }
         }
       }

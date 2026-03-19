@@ -123,7 +123,10 @@ router.get('/stats', adminController.getStats);
 // ---------- Admin VMs (toutes les VMs plateforme) ----------
 router.get('/vms', adminController.listAllVms);
 router.get('/vms/:id', adminController.getVmDetail);
+router.get('/vms/:id/console', adminController.getVmConsole);
 router.post('/vms/:id/action', adminController.vmAction);
+router.delete('/vms/:id', adminController.deleteVm);
+router.get('/metrics/latest', adminController.getLatestMetricsSnapshot);
 
 // ---------- Admin Users ----------
 router.get('/users', adminController.listUsers);

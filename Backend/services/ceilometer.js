@@ -15,9 +15,6 @@ function samplesToSeries(samples) {
 }
 
 /**
- * Fetch Ceilometer samples for a Nova instance (resource_id = serverId).
- * Requires CEILOMETER_URL to be set (e.g. http://host:8777).
- * Returns cpu_util (%), memory_usage, disk_usage (GB or %), network_incoming_bytes, network_outgoing_bytes (cumulative bytes).
  * @param {string} resourceId - Nova server UUID (instance id)
  * @param {string} [projectId] - Optional Keystone project ID for token scope
  * @returns {Promise<Object>}
@@ -26,6 +23,13 @@ async function getInstanceMetrics(resourceId, projectId = null) {
   const baseUrl = process.env.CEILOMETER_URL;
   if (!baseUrl) return null;
   try {
+    if (!getInstanceMetrics._loggedOnce) {
+      getInstanceMetrics._loggedOnce = true;
+      // eslint-disable-next-line no-console
+      console.log('[ceilometer] config:', JSON.stringify({
+        CEILOMETER_URL: baseUrl
+      }, null, 2));
+    }
     const token = await openstack.getAuthToken(projectId);
     const limit = 60;
     const q = `q.field=resource_id&q.op=eq&q.value=${resourceId}`;

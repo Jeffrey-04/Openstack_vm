@@ -160,6 +160,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .admin-figma-table-card {
@@ -682,6 +683,21 @@
 @media (max-width: 768px) {
   .admin-quick-stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-table-pagination {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .admin-table-pagination > span {
+    width: 100%;
+  }
+
+  .admin-pagination-btns {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 

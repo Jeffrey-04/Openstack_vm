@@ -123,6 +123,14 @@
   transition: background 0.15s, border-color 0.15s;
 }
 
+.billing-list-item-btn-client {
+  grid-template-columns: 1fr auto auto auto;
+}
+
+.billing-list-item-btn-admin {
+  grid-template-columns: 1fr 1fr auto auto auto;
+}
+
 @media (max-width: 600px) {
   .billing-list-item-btn {
     grid-template-columns: 1fr auto;
@@ -131,6 +139,7 @@
   .billing-list-item-date { order: 2; grid-column: 1 / -1; }
   .billing-list-item-status { order: 3; }
   .billing-list-item-amount { order: 4; }
+  .billing-list-item-client { order: 2; grid-column: 1 / -1; }
 }
 
 .billing-list-item-btn:hover {
@@ -185,6 +194,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
   padding: 0.5rem 0;
   border-bottom: 1px solid #f0f0f5;
 }
@@ -220,6 +230,11 @@
   font-size: 0.85rem;
 }
 
+.billing-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .billing-table th,
 .billing-table td {
   padding: 0.5rem 0.75rem;
@@ -237,8 +252,18 @@
 }
 
 @media (max-width: 500px) {
+  .billing-detail-row {
+    flex-wrap: wrap;
+  }
+
+  .billing-detail-label,
+  .billing-detail-value {
+    width: 100%;
+  }
+
   .billing-table {
     font-size: 0.8rem;
+    min-width: 560px;
   }
   .billing-table th,
   .billing-table td {

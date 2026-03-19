@@ -7,12 +7,13 @@ const logger = require('../utils/logger');
 router.get('/status', async (req, res, next) => {
   try {
     logger.info('OpenStack: get status');
-    const token = await openstack.getAuthToken();
+    const health = await openstack.getServiceHealth();
     res.json({
       success: true,
-      connected: !!token,
-      message: 'Successfully connected to OpenStack',
-      timestamp: new Date().toISOString()
+      connected: !!health.overall,
+      message: health.overall ? 'Successfully connected to OpenStack' : 'OpenStack partially unavailable',
+      timestamp: new Date().toISOString(),
+      services: health
     });
   } catch (error) {
     logger.error('OpenStack status:', error.message);
@@ -22,6 +23,23 @@ router.get('/status', async (req, res, next) => {
       message: 'Failed to connect to OpenStack',
       error: error.message
     });
+  }
+});
+
+// Detailed health endpoint for diagnostics
+router.get('/health', async (req, res, next) => {
+  try {
+    logger.info('OpenStack: health check');
+    const health = await openstack.getServiceHealth();
+    res.status(health.overall ? 200 : 503).json({
+      success: health.overall,
+      connected: health.overall,
+      services: health,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('OpenStack health:', error.message);
+    next(error);
   }
 });
 

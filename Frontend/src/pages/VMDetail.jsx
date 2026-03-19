@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Button, Card, CardBody, Chip } from '../components/ui';
 import apiService from '../services/api';
 import toast from 'react-hot-toast';
 import Skeleton from '../components/Skeleton';
@@ -47,6 +48,8 @@ function VMDetail() {
   const [vm, setVm] = useState(null);
   const [policy, setPolicy] = useState(null);
   const [metrics, setMetrics] = useState(null);
+  const [metricsSource, setMetricsSource] = useState(null);
+  const [metricsUpdatedAt, setMetricsUpdatedAt] = useState(null);
   const [scalingHistory, setScalingHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -54,24 +57,7 @@ function VMDetail() {
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    loadVm();
-  }, [id]);
-
-  useEffect(() => {
-    if (!vm || vm.status !== 'BUILD') return;
-    const fetchVm = isAdmin ? () => apiService.getAdminVM(id) : () => apiService.getVM(id);
-    const interval = setInterval(() => {
-      fetchVm().then((res) => {
-        const server = res.server;
-        if (server) setVm(server);
-      }).catch(() => {});
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [id, vm?.status, isAdmin]);
-
-  const loadVm = async () => {
+  const loadVm = useCallback(async () => {
     try {
       setLoading(true);
       if (isAdmin) {
@@ -79,6 +65,8 @@ function VMDetail() {
         setVm(serverRes.server || null);
         setPolicy(null);
         setMetrics({});
+        setMetricsSource(null);
+        setMetricsUpdatedAt(null);
         setScalingHistory([]);
       } else {
         const [serverRes, policyRes, metricsRes, historyRes] = await Promise.all([
@@ -90,6 +78,8 @@ function VMDetail() {
         setVm(serverRes.server || null);
         setPolicy(policyRes.policy || null);
         setMetrics(metricsRes.metrics || {});
+        setMetricsSource(metricsRes.source || null);
+        setMetricsUpdatedAt(new Date().toISOString());
         setScalingHistory(historyRes.history || []);
       }
     } catch (err) {
@@ -98,7 +88,88 @@ function VMDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, isAdmin]);
+
+  useEffect(() => {
+    if (!id) return;
+    loadVm();
+  }, [id, loadVm]);
+
+  useEffect(() => {
+    if (!id || !vm || vm.status !== 'ACTIVE' || isAdmin) return;
+    let interval = null;
+    let source = null;
+    let closed = false;
+
+    const applyMetrics = (payload) => {
+      if (!payload) return;
+      // Le SSE renvoie { latest: { cpu_util: {value,timestamp}, ... } } alors que le
+      // reste du code attend des séries arrays: { cpu_util: [{value,timestamp}, ...] }.
+      if (payload.latest && !payload.metrics) {
+        const latest = payload.latest || {};
+        const arrays = {};
+        for (const [k, v] of Object.entries(latest)) {
+          arrays[k] = v ? [v] : [];
+        }
+        setMetrics(arrays);
+      } else {
+        setMetrics(payload.metrics || payload.latest || {});
+      }
+      setMetricsSource(payload.source || null);
+      setMetricsUpdatedAt(new Date().toISOString());
+    };
+
+    const startPollingFallback = () => {
+      if (interval) return;
+      interval = setInterval(() => {
+        apiService.getVmMetrics(id).then((res) => {
+          applyMetrics(res);
+        }).catch(() => {});
+      }, 15000);
+    };
+
+    if (typeof EventSource === 'function') {
+      try {
+        source = new EventSource(apiService.getVmMetricsStreamUrl(id));
+        source.addEventListener('metrics', (event) => {
+          if (closed) return;
+          try {
+            const parsed = JSON.parse(event.data || '{}');
+            applyMetrics(parsed);
+          } catch {
+            // ignore malformed SSE payload
+          }
+        });
+        source.onerror = () => {
+          if (!closed) {
+            startPollingFallback();
+          }
+        };
+      } catch {
+        startPollingFallback();
+      }
+    } else {
+      startPollingFallback();
+    }
+
+    return () => {
+      closed = true;
+      if (interval) clearInterval(interval);
+      if (source) source.close();
+    };
+  }, [id, vm, isAdmin]);
+
+  useEffect(() => {
+    if (!vm || vm.status !== 'BUILD') return;
+    const fetchVm = isAdmin ? () => apiService.getAdminVM(id) : () => apiService.getVM(id);
+    const interval = setInterval(() => {
+      fetchVm().then((res) => {
+        const server = res.server;
+        if (server) setVm(server);
+      }).catch(() => {});
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [id, vm, isAdmin]);
 
   const handleAction = async (action) => {
     if (action === 'delete') {
@@ -124,7 +195,11 @@ function VMDetail() {
   const handleConfirmDelete = async () => {
     try {
       setActionLoading(true);
-      await apiService.deleteVM(id);
+      if (isAdmin) {
+        await apiService.deleteAdminVM(id);
+      } else {
+        await apiService.deleteVM(id);
+      }
       toast.success('VM supprimée');
       navigate(`${basePath}/vms`);
     } catch (err) {
@@ -142,22 +217,30 @@ function VMDetail() {
 
   const chartData = useMemo(() => {
     const m = metrics || {};
-    const cpu = (m.cpu_util || []).slice(0, 30).reverse();
-    const mem = (m.memory_usage || m.mem_util || []).slice(0, 30).reverse();
+    const toSeries = (value) => (Array.isArray(value) ? value : []);
+    const cpu = toSeries(m.cpu_util).slice(0, 30).reverse();
+    const mem = toSeries(m.memory_usage).length
+      ? toSeries(m.memory_usage).slice(0, 30).reverse()
+      : toSeries(m.mem_util).slice(0, 30).reverse();
     const byTime = {};
     cpu.forEach((p) => {
-      const t = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-      if (!byTime[t]) byTime[t] = { name: t, cpu_util: undefined, memory_usage: undefined };
-      byTime[t].cpu_util = p.value;
+      const ts = p.timestamp ? new Date(p.timestamp).toISOString() : null;
+      if (!ts) return;
+      const t = new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      if (!byTime[ts]) byTime[ts] = { name: t, timestamp: ts, cpu_util: undefined, memory_usage: undefined };
+      byTime[ts].cpu_util = p.value;
     });
     mem.forEach((p) => {
-      const t = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-      if (!byTime[t]) byTime[t] = { name: t, cpu_util: undefined, memory_usage: undefined };
-      byTime[t].memory_usage = p.value;
+      const ts = p.timestamp ? new Date(p.timestamp).toISOString() : null;
+      if (!ts) return;
+      const t = new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      if (!byTime[ts]) byTime[ts] = { name: t, timestamp: ts, cpu_util: undefined, memory_usage: undefined };
+      byTime[ts].memory_usage = p.value;
     });
-    return Object.values(byTime).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [metrics?.cpu_util, metrics?.memory_usage, metrics?.mem_util]);
-  const hasChartData = chartData.length > 1;
+    return Object.values(byTime).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  }, [metrics]);
+  const hasChartData = chartData.length > 0;
+  const chartIsSparse = chartData.length > 0 && chartData.length <= 1;
 
   if (loading && !vm) {
     return (
@@ -234,16 +317,16 @@ function VMDetail() {
           {osShort !== '—' && <span className="vm-detail-os-logo">{osShort}</span>}
           <span className="vm-detail-os-version">{osName}</span>
           <span className="vm-detail-plan">KVM {flavor.vcpus || '—'}</span>
-          <span className={`vm-detail-status ${statusInfo.class}`}>{statusInfo.label}</span>
+          <Chip size="sm" color={vm.status === 'ACTIVE' ? 'success' : vm.status === 'ERROR' ? 'danger' : 'warning'} variant="flat" className={`vm-detail-status ${statusInfo.class}`}>{statusInfo.label}</Chip>
         </div>
         <div className="vm-detail-card vm-detail-card-access">
           <div className="vm-detail-card-label">Accès root</div>
           <div className="vm-detail-ssh-row">
             <code>{sshLine || 'Aucune IP pour le moment'}</code>
             {sshLine && (
-              <button type="button" className="vm-detail-btn-copy" onClick={() => handleCopy(sshLine, 'Commande SSH')}>
+              <Button size="sm" variant="flat" type="button" className="vm-detail-btn-copy" onClick={() => handleCopy(sshLine, 'Commande SSH')}>
                 Copier
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -253,26 +336,33 @@ function VMDetail() {
         </div>
         <div className="vm-detail-card vm-detail-card-actions">
           {vm.status === 'ACTIVE' && (
-            <button type="button" className="vm-detail-btn vm-detail-btn-restart" onClick={() => handleAction('reboot')} disabled={actionLoading}>
+            <Button type="button" color="secondary" variant="flat" className="vm-detail-btn vm-detail-btn-restart" onClick={() => handleAction('reboot')} disabled={actionLoading}>
               Redémarrer le VPS
-            </button>
+            </Button>
           )}
           {vm.status === 'SHUTOFF' && (
-            <button type="button" className="vm-detail-btn vm-detail-btn-start" onClick={() => handleAction('start')} disabled={actionLoading}>
+            <Button type="button" color="success" variant="flat" className="vm-detail-btn vm-detail-btn-start" onClick={() => handleAction('start')} disabled={actionLoading}>
               Démarrer
-            </button>
+            </Button>
           )}
           {vm.status === 'ACTIVE' && (
-            <button type="button" className="vm-detail-btn vm-detail-btn-stop" onClick={() => handleAction('stop')} disabled={actionLoading}>
+            <Button type="button" color="warning" variant="flat" className="vm-detail-btn vm-detail-btn-stop" onClick={() => handleAction('stop')} disabled={actionLoading}>
               Arrêter
-            </button>
+            </Button>
           )}
           <button type="button" className="vm-detail-btn vm-detail-btn-more" title="Autres actions">...</button>
         </div>
       </div>
 
-      <section className="vm-detail-section">
+      <Card shadow="none" className="vm-detail-section" style={{ border: '1px solid #e2e8f0' }}>
+        <CardBody>
         <h2 className="vm-detail-section-title">Utilisation des ressources</h2>
+        <div className="vm-detail-metrics-meta">
+          <span>Source: <strong>{metricsSource?.primary || 'inconnue'}</strong></span>
+          {metricsUpdatedAt && (
+            <span>Mis à jour: <strong>{new Date(metricsUpdatedAt).toLocaleTimeString('fr-FR')}</strong></span>
+          )}
+        </div>
         {cpuMetric == null && memMetric == null && diskUsageRaw == null && trafficInBytes == null && trafficOutBytes == null && (
           <p className="vm-detail-metrics-note">
             Les statistiques apparaîtront ici lorsque les métriques sont disponibles (Ceilometer configuré côté serveur).
@@ -326,9 +416,15 @@ function VMDetail() {
               title="CPU et mémoire dans le temps"
               height={220}
             />
+            {chartIsSparse && (
+              <p style={{ marginTop: '.75rem', color: '#64748b', fontSize: '.85rem' }}>
+                Peu de points pour l’instant. Attendez 1-3 minutes pour que la courbe se stabilise.
+              </p>
+            )}
           </div>
         )}
-      </section>
+        </CardBody>
+      </Card>
 
       <section className="vm-detail-section">
         <h2 className="vm-detail-section-title">Sécurité et sauvegardes</h2>
@@ -457,7 +553,9 @@ function VMDetail() {
                     const instanceId = vm.id || id;
                     const dbId = vm.dbId;
                     console.info('[VMDetail] Console: vm.dbId=', dbId, 'vm.id (instanceId)=', instanceId, 'url param id=', id);
-                    if (dbId) {
+                    if (isAdmin) {
+                      res = await apiService.getAdminVmConsole(dbId || instanceId);
+                    } else if (dbId) {
                       try {
                         console.info('[VMDetail] Console: trying GET /api/vms/console/by-db-id/' + dbId);
                         res = await apiService.getVmConsoleByDbId(dbId);

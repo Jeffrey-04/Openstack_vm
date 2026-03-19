@@ -190,10 +190,13 @@
   border-radius: 6px;
   background: var(--card-bg, #fff);
   cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
 }
 
 .vm-detail-btn:hover:not(:disabled) {
   background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
 .vm-detail-btn:disabled {
@@ -234,6 +237,11 @@
   border: none;
   cursor: pointer;
   font-size: 0.9rem;
+  border-radius: 4px;
+}
+
+.vm-detail-btn-icon:hover {
+  background: #f1f5f9;
 }
 
 .vm-detail-btn-danger {
@@ -267,6 +275,15 @@
   background: #f8fafc;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
+}
+
+.vm-detail-metrics-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: -0.25rem 0 0.75rem 0;
+  flex-wrap: wrap;
 }
 
 .vm-detail-metrics {
@@ -483,7 +500,7 @@
   }
 
   .vm-detail-metrics {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .vm-detail-footer-actions {

@@ -4,6 +4,8 @@ const openstack = require('../config/openstack');
 const scalingController = require('../controllers/scalingController');
 const { authenticate } = require('../middleware/auth');
 const { VM, VmRuntime, VMTemplate, ScalingPolicy } = require('../models');
+const vmService = require('../services/vmService');
+const metricsQueryService = require('../services/metricsQueryService');
 const logger = require('../utils/logger');
 
 async function findFlavorBySpecs(vcpus, ramGb, diskGb) {
@@ -23,75 +25,29 @@ async function findFlavorBySpecs(vcpus, ramGb, diskGb) {
 // All VM routes require authentication
 router.use(authenticate);
 
-// Find VM by route param: accept OpenStack instanceId or our DB id (UUID)
 async function findVmByParam(paramId, userId) {
   logger.info('[findVmByParam] entry', { paramId: paramId || '(empty)', userId: userId || '(empty)' });
-  if (!paramId || !userId) {
-    logger.warn('[findVmByParam] missing paramId or userId');
-    return null;
-  }
-  const byInstance = await VM.findOne({ where: { instanceId: paramId, userId } });
-  if (byInstance) {
-    logger.info('[findVmByParam] found by instanceId', { dbId: byInstance.id, instanceId: byInstance.instanceId });
-    return byInstance;
-  }
-  logger.info('[findVmByParam] not found by instanceId, trying by pk');
-  const byPk = await VM.findOne({ where: { id: paramId, userId } });
-  if (byPk) {
-    logger.info('[findVmByParam] found by pk (id)', { dbId: byPk.id, instanceId: byPk.instanceId });
-    return byPk;
-  }
+  const vm = await vmService.findVmForUser(paramId, userId);
+  if (vm) return vm;
   logger.warn('[findVmByParam] not found', { paramId, userId });
   const debugList = await VM.findAll({ where: { userId }, attributes: ['id', 'instanceId'], limit: 5, raw: true });
   logger.info('[findVmByParam] user VMs in DB (sample)', { count: debugList.length, sample: debugList });
   return null;
 }
 
-function normalizeVmParam(paramId) {
-  if (!paramId || typeof paramId !== 'string') return paramId;
-  return paramId.trim();
-}
-
-/** Prefer floating/public IP for SSH: accessIPv4, then public/floating/ext network, then first address. */
-function getPreferredAddress(server) {
-  const s = server || {};
-  if (s.accessIPv4 && String(s.accessIPv4).trim()) return String(s.accessIPv4).trim();
-  const addrs = s.addresses && typeof s.addresses === 'object' ? s.addresses : {};
-  const networkNames = Object.keys(addrs);
-  const prefer = networkNames.find((n) => /public|floating|ext|external/i.test(n));
-  if (prefer && Array.isArray(addrs[prefer]) && addrs[prefer].length > 0) {
-    const first = addrs[prefer].find((a) => a.version === 4 || a.addr);
-    if (first && first.addr) return first.addr;
-  }
-  for (const name of networkNames) {
-    const list = addrs[name];
-    if (Array.isArray(list) && list.length > 0 && list[0].addr) return list[0].addr;
-  }
-  return null;
-}
+const normalizeVmParam = vmService.normalizeVmParam;
 
 // List VMs for the current user (from DB, optionally sync status from OpenStack)
 router.get('/', async (req, res, next) => {
   try {
-    const projectId = req.user?.openstackProjectId || null;
     const vms = await VM.findAll({
       where: { userId: req.userId },
       order: [['createdAt', 'DESC']]
     });
     const servers = await Promise.all(
       vms.map(async (vm) => {
-        try {
-          const data = await openstack.getServer(vm.instanceId, projectId);
-          const raw = data.server || data;
-          if (raw.status && raw.status !== vm.status) {
-            vm.update({ status: raw.status }).catch(() => {});
-          }
-          const s = { ...raw, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
-          s.preferredAddress = getPreferredAddress(s);
-          return s;
-        } catch {
-          return { id: vm.instanceId, name: vm.instanceId, status: vm.status || 'UNKNOWN', dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
-        }
+        const projectId = req.user?.openstackProjectId || null;
+        return vmService.buildServerView(vm, projectId);
       })
     );
     res.json({
@@ -156,6 +112,56 @@ router.get('/console/by-db-id/:dbId', async (req, res, next) => {
 // Scaling (must be before /:id to avoid "scaling-policy" as id)
 router.get('/:id/scaling-policy', scalingController.getScalingPolicy);
 router.put('/:id/scaling-policy', scalingController.putScalingPolicy);
+router.get('/:id/metrics/latest', async (req, res, next) => {
+  try {
+    const vm = await findVmByParam(req.params.id, req.userId);
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
+    }
+    const projectId = req.user?.openstackProjectId || null;
+    const { latest, source } = await metricsQueryService.getLatestMetricsForVm(vm, projectId);
+    res.json({ success: true, instanceId: vm.instanceId, latest, source });
+  } catch (error) {
+    next(error);
+  }
+});
+router.get('/:id/metrics/stream', async (req, res, next) => {
+  try {
+    const vm = await findVmByParam(req.params.id, req.userId);
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM not found', status: 404 } });
+    }
+    const projectId = req.user?.openstackProjectId || null;
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+    const sendLatest = async () => {
+      const { latest, source } = await metricsQueryService.getLatestMetricsForVm(vm, projectId);
+      const payload = {
+        instanceId: vm.instanceId,
+        latest,
+        source,
+        ts: new Date().toISOString()
+      };
+      res.write(`event: metrics\n`);
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    };
+
+    await sendLatest();
+    const interval = setInterval(() => {
+      sendLatest().catch(() => {});
+    }, Number(process.env.METRICS_STREAM_INTERVAL_MS || 10000));
+
+    req.on('close', () => {
+      clearInterval(interval);
+      res.end();
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 router.get('/:id/metrics', scalingController.getMetrics);
 router.get('/:id/scaling-history', scalingController.getScalingHistory);
 
@@ -243,31 +249,7 @@ router.get('/:id', async (req, res, next) => {
     }
     logger.info('[GET /:id] VM found, returning', { dbId: vm.id, instanceId: vm.instanceId, openstackIdInResponse: vm.instanceId });
     const projectId = req.user?.openstackProjectId || null;
-    const data = await openstack.getServer(vm.instanceId, projectId);
-    const raw = data.server || data;
-    const server = { ...raw, dbId: vm.id, flavorId: vm.flavorId, expiresAt: vm.expiresAt };
-    server.preferredAddress = getPreferredAddress(server);
-
-    const flavorId = server.flavor?.id || server.flavorId || vm.flavorId;
-    if (flavorId) {
-      try {
-        const flavorData = await openstack.getFlavor(flavorId, projectId);
-        server.flavor = flavorData.flavor || flavorData;
-      } catch {
-        // keep existing server.flavor or id only
-      }
-    }
-
-    const imageId = server.image?.id || (typeof server.image === 'string' ? server.image : null);
-    if (imageId) {
-      try {
-        const imageData = await openstack.getImage(imageId);
-        const img = imageData.image || imageData;
-        server.image = { id: imageId, name: img.name || img.display_name || null };
-      } catch {
-        server.image = server.image && typeof server.image === 'object' ? server.image : { id: imageId, name: null };
-      }
-    }
+    const server = await vmService.getDetailedServerView(vm, projectId, false);
 
     res.json({
       success: true,
@@ -364,18 +346,13 @@ router.post('/', async (req, res, next) => {
     const vmRecord = await VM.create({
       userId: req.userId,
       instanceId,
+      name: server.name || name,
       flavorId: flavorIdToUse,
       status: server.status || 'BUILD',
       expiresAt: expiresAt ? new Date(expiresAt) : null
     });
 
-    // Track runtime for billing: VM is considered running from creation (OpenStack will start it)
-    await VmRuntime.create({
-      userId: req.userId,
-      instanceId,
-      startedAt: new Date(),
-      stoppedAt: null
-    });
+    // Billing runtime starts when VM is observed ACTIVE, not during BUILD.
 
     if (scaling && (scaling.thresholdHigh != null || scaling.thresholdLow != null)) {
       await ScalingPolicy.create({
@@ -407,6 +384,14 @@ router.delete('/:id', async (req, res, next) => {
     }
     const projectId = req.user?.openstackProjectId || null;
     await openstack.deleteServer(vm.instanceId, projectId);
+    const runtime = await VmRuntime.findOne({
+      where: { instanceId: vm.instanceId, userId: req.userId, stoppedAt: null },
+      order: [['startedAt', 'DESC']]
+    });
+    if (runtime) {
+      runtime.stoppedAt = new Date();
+      await runtime.save();
+    }
     await vm.destroy();
     res.json({
       success: true,
@@ -475,7 +460,7 @@ router.post('/:id/action', async (req, res, next) => {
       throw err;
     }
 
-    if (action === 'start') {
+    if (action === 'start' || action === 'resume' || action === 'unpause') {
       const alreadyRunning = await VmRuntime.findOne({
         where: { instanceId: serverId, userId: req.userId, stoppedAt: null }
       });
@@ -487,7 +472,7 @@ router.post('/:id/action', async (req, res, next) => {
           stoppedAt: null
         });
       }
-    } else if (action === 'stop') {
+    } else if (action === 'stop' || action === 'suspend' || action === 'pause') {
       const runtime = await VmRuntime.findOne({
         where: { instanceId: serverId, userId: req.userId, stoppedAt: null },
         order: [['startedAt', 'DESC']]

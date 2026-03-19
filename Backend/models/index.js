@@ -70,7 +70,15 @@ const syncDatabase = async (options = {}) => {
 const runMigrations = async () => {
   const umzug = new Umzug({
     migrations: {
-      glob: path.join(__dirname, '..', 'migrations', '*.js')
+      glob: path.join(__dirname, '..', 'migrations', '*.js'),
+      resolve: ({ name, path: migPath, context }) => {
+        const migration = require(migPath);
+        return {
+          name,
+          up: async () => migration.up({ context }),
+          down: async () => migration.down({ context })
+        };
+      }
     },
     context: sequelize.getQueryInterface(),
     storage: new SequelizeStorage({ sequelize }),

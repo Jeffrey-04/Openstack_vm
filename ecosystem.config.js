@@ -17,7 +17,7 @@ module.exports = {
       name: 'vm-marketplace-frontend',
       cwd: './Frontend',
       script: 'npm',
-      args: 'start',
+      args: 'run start:prod',
       env: {
         NODE_ENV: 'development',
         PORT: 3000,

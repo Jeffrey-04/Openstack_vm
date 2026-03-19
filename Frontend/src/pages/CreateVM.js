@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Button, Card, CardBody } from '../components/ui';
 import apiService from '../services/api';
 import toast from 'react-hot-toast';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
@@ -44,25 +45,7 @@ function CreateVM() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    loadResources();
-  }, []);
-
-  /* Quand on arrive depuis le marketplace avec un flavor choisi, préremplir le formulaire "Sur mesure" */
-  useEffect(() => {
-    if (!selectedFlavorFromMarketplace) return;
-    const f = selectedFlavorFromMarketplace;
-    setFormData(prev => ({
-      ...prev,
-      flavorRef: f.id || prev.flavorRef,
-      vcpus: f.vcpus != null ? Number(f.vcpus) : prev.vcpus,
-      ramGb: f.ram != null ? Math.round(Number(f.ram) / 1024) || prev.ramGb : prev.ramGb,
-      diskGb: f.disk != null ? Number(f.disk) : prev.diskGb,
-    }));
-    setMode(VM_MODE_CUSTOM);
-  }, [selectedFlavorFromMarketplace]);
-
-  const loadResources = async () => {
+  const loadResources = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -89,7 +72,25 @@ function CreateVM() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData.networkId]);
+
+  useEffect(() => {
+    loadResources();
+  }, [loadResources]);
+
+  /* Quand on arrive depuis le marketplace avec un flavor choisi, préremplir le formulaire "Sur mesure" */
+  useEffect(() => {
+    if (!selectedFlavorFromMarketplace) return;
+    const f = selectedFlavorFromMarketplace;
+    setFormData(prev => ({
+      ...prev,
+      flavorRef: f.id || prev.flavorRef,
+      vcpus: f.vcpus != null ? Number(f.vcpus) : prev.vcpus,
+      ramGb: f.ram != null ? Math.round(Number(f.ram) / 1024) || prev.ramGb : prev.ramGb,
+      diskGb: f.disk != null ? Number(f.disk) : prev.diskGb,
+    }));
+    setMode(VM_MODE_CUSTOM);
+  }, [selectedFlavorFromMarketplace]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -199,13 +200,6 @@ function CreateVM() {
     return null;
   })();
 
-  const formatRAM = (ram) => {
-    if (ram >= 1024) {
-      return `${(ram / 1024).toFixed(0)} GB`;
-    }
-    return `${ram} MB`;
-  };
-
   if (loading) {
     return (
       <div className="ds-loading-wrap">
@@ -216,16 +210,17 @@ function CreateVM() {
 
   return (
     <div>
-      <div className="card" style={{ marginBottom: '2rem' }}>
-        <div className="card-header">
+      <Card shadow="none" style={{ marginBottom: '2rem', border: '1px solid #e2e8f0' }}>
+        <CardBody className="card-header">
           <h1 className="card-title">Créer une Machine Virtuelle</h1>
           <p className="card-subtitle">Configurez et déployez votre nouvelle VM</p>
-        </div>
-      </div>
+        </CardBody>
+      </Card>
 
       <div className="grid grid-2" style={{ alignItems: 'start' }}>
         {/* Formulaire */}
-        <div className="card">
+        <Card shadow="none" className="card" style={{ border: '1px solid #e2e8f0' }}>
+          <CardBody>
           <h2 style={{ marginBottom: '1.5rem' }}>Configuration</h2>
 
           {error && (
@@ -237,7 +232,7 @@ function CreateVM() {
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label className="form-label">Type de VM</label>
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     type="radio"
@@ -379,7 +374,7 @@ function CreateVM() {
                 Activer le scaling automatique (CPU et mémoire)
               </label>
               {formData.scalingEnabled && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label">Scale up si utilisation &gt; (%)</label>
                     <input
@@ -417,28 +412,21 @@ function CreateVM() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-              <button
-                type="submit"
-                disabled={creating}
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-              >
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap' }}>
+              <Button type="submit" disabled={creating} color="primary" variant="flat" style={{ flex: '1 1 240px' }}>
                 {creating ? 'Création en cours...' : 'Créer la VM'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { if (isClient) navigate('/client/vms'); else if (isAdmin) navigate('/admin/vms'); else navigate('/client/vms'); }}
-                className="btn btn-secondary"
-              >
+              </Button>
+              <Button type="button" variant="light" style={{ flex: '1 1 160px' }} onClick={() => { if (isClient) navigate('/client/vms'); else if (isAdmin) navigate('/admin/vms'); else navigate('/client/vms'); }}>
                 Annuler
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+          </CardBody>
+        </Card>
 
         {/* Récapitulatif */}
-        <div className="card">
+        <Card shadow="none" className="card" style={{ border: '1px solid #e2e8f0' }}>
+          <CardBody>
           <h2 style={{ marginBottom: '1.5rem' }}>Récapitulatif</h2>
 
           <div style={{ marginBottom: '1.5rem' }}>
@@ -482,10 +470,12 @@ function CreateVM() {
           <div className="alert alert-info" style={{ marginTop: '1.5rem' }}>
             <strong>Info:</strong> Votre VM sera prête dans 2-5 minutes après la création.
           </div>
-        </div>
+          </CardBody>
+        </Card>
       </div>
 
-      <div className="card" style={{ marginTop: '2rem', background: '#fef3c7' }}>
+      <Card shadow="none" className="card" style={{ marginTop: '2rem', background: '#fef3c7', border: '1px solid #e2e8f0' }}>
+        <CardBody>
         <h3 style={{ marginBottom: '0.5rem' }}>⚠️ Important</h3>
         <ul style={{ paddingLeft: '1.5rem', lineHeight: '1.8', color: '#92400e', margin: 0 }}>
           <li>Assurez-vous d'avoir sélectionné la bonne image système</li>
@@ -493,7 +483,8 @@ function CreateVM() {
           <li>Les VMs sont facturées à l'heure d'utilisation</li>
           <li>N'oubliez pas d'arrêter vos VMs quand vous ne les utilisez pas</li>
         </ul>
-      </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }

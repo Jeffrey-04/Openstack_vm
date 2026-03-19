@@ -116,30 +116,23 @@ setup_backend() {
     npm install
     print_success "Dépendances installées"
     
-    # Créer le fichier .env
-    print_info "Création du fichier .env..."
-    cat > .env << EOF
-# OpenStack Configuration
-OS_USERNAME=admin
-OS_PASSWORD=${OS_PASSWORD}
-OS_PROJECT_NAME=admin
-OS_AUTH_URL=http://${VPS_IP}/identity/v3
-OS_REGION_NAME=RegionOne
-
-# OpenStack Service URLs
-KEYSTONE_URL=http://${VPS_IP}/identity/v3
-NOVA_URL=http://${VPS_IP}:8774/v2.1
-GLANCE_URL=http://${VPS_IP}:9292
-NEUTRON_URL=http://${VPS_IP}:9696
-
-# Server Configuration
-PORT=3001
-NODE_ENV=production
-
-# CORS Configuration
-CORS_ORIGIN=http://${VPS_IP}
-EOF
-    print_success "Fichier .env créé"
+    # Préparer le fichier .env pour l'intégration OpenStack
+    if [ -f .env ]; then
+        print_warning "Backend/.env existe déjà, aucune modification appliquée. Vérifiez qu'il pointe bien vers votre OpenStack."
+    else
+        if [ -f .env.example ]; then
+            print_info "Aucun .env trouvé, copie de .env.example..."
+            cp .env.example .env
+            # Remplacer l'IP d'exemple par l'IP du VPS si présente dans le template
+            if grep -q "45.9.191.91" .env; then
+                print_info "Adaptation de l'IP d'exemple dans .env..."
+                sed -i "s/45.9.191.91/${VPS_IP}/g" .env
+            fi
+            print_success "Backend/.env créé à partir de .env.example. Vérifiez les identifiants OpenStack (OS_USERNAME, OS_PASSWORD, OS_PROJECT_NAME, URLs...)."
+        else
+            print_warning "Aucun fichier .env ou .env.example trouvé dans Backend/. Veuillez créer Backend/.env manuellement pour configurer OpenStack."
+        fi
+    fi
     
     cd ..
 }

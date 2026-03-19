@@ -1,32 +1,9 @@
-const { User, Invoice, VM } = require('../models');
+const { User, Invoice, VM, VmRuntime } = require('../models');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 const openstack = require('../config/openstack');
-
-function findVmByParam(paramId) {
-  if (!paramId) return null;
-  return VM.findOne({
-    where: { [Op.or]: [{ instanceId: paramId }, { id: paramId }] },
-    include: [{ model: User, as: 'User', attributes: ['id', 'openstackProjectId', 'email', 'name'] }]
-  });
-}
-
-function getPreferredAddress(server) {
-  const s = server || {};
-  if (s.accessIPv4 && String(s.accessIPv4).trim()) return String(s.accessIPv4).trim();
-  const addrs = s.addresses && typeof s.addresses === 'object' ? s.addresses : {};
-  const networkNames = Object.keys(addrs);
-  const prefer = networkNames.find((n) => /public|floating|ext|external/i.test(n));
-  if (prefer && Array.isArray(addrs[prefer]) && addrs[prefer].length > 0) {
-    const first = addrs[prefer].find((a) => a.version === 4 || a.addr);
-    if (first && first.addr) return first.addr;
-  }
-  for (const name of networkNames) {
-    const list = addrs[name];
-    if (Array.isArray(list) && list.length > 0 && list[0].addr) return list[0].addr;
-  }
-  return null;
-}
+const vmService = require('../services/vmService');
+const metricsQueryService = require('../services/metricsQueryService');
 
 /**
  * GET /api/admin/stats
@@ -204,32 +181,12 @@ async function listAllVms(req, res, next) {
     const servers = await Promise.all(
       vms.map(async (vm) => {
         const projectId = vm.User?.openstackProjectId || null;
-        try {
-          const data = await openstack.getServer(vm.instanceId, projectId);
-          const raw = data.server || data;
-          if (raw.status && raw.status !== vm.status) {
-            vm.update({ status: raw.status }).catch(() => {});
-          }
-          return {
-            ...raw,
-            dbId: vm.id,
-            flavorId: vm.flavorId,
-            expiresAt: vm.expiresAt,
-            userId: vm.userId,
-            userEmail: vm.User?.email
-          };
-        } catch (e) {
-          return {
-            id: vm.instanceId,
-            name: vm.instanceId,
-            status: vm.status || 'UNKNOWN',
-            dbId: vm.id,
-            flavorId: vm.flavorId,
-            expiresAt: vm.expiresAt,
-            userId: vm.userId,
-            userEmail: vm.User?.email
-          };
-        }
+        const server = await vmService.buildServerView(vm, projectId);
+        return {
+          ...server,
+          userId: vm.userId,
+          userEmail: vm.User?.email
+        };
       })
     );
     res.json({ success: true, count: servers.length, servers });
@@ -281,45 +238,49 @@ async function updateUser(req, res, next) {
 async function getVmDetail(req, res, next) {
   try {
     const { id } = req.params;
-    const vm = await findVmByParam(id);
+    const vm = await vmService.findVmAny(id, true);
     if (!vm) {
       return res.status(404).json({ error: { message: 'VM introuvable', status: 404 } });
     }
     const projectId = vm.User?.openstackProjectId || null;
-    const data = await openstack.getServer(vm.instanceId, projectId);
-    const raw = data.server || data;
-    const server = {
-      ...raw,
-      dbId: vm.id,
-      flavorId: vm.flavorId,
-      expiresAt: vm.expiresAt,
-      preferredAddress: getPreferredAddress(raw)
-    };
-    const flavorId = server.flavor?.id || server.flavorId || vm.flavorId;
-    if (flavorId) {
-      try {
-        const flavorData = await openstack.getFlavor(flavorId, projectId);
-        server.flavor = flavorData.flavor || flavorData;
-      } catch {
-        // keep existing
-      }
-    }
-    const imageId = server.image?.id || (typeof server.image === 'string' ? server.image : null);
-    if (imageId) {
-      try {
-        const imageData = await openstack.getImage(imageId);
-        const img = imageData.image || imageData;
-        server.image = { id: imageId, name: img.name || img.display_name || null };
-      } catch {
-        server.image = server.image && typeof server.image === 'object' ? server.image : { id: imageId, name: null };
-      }
-    }
-    if (vm.User) {
-      server.owner = { id: vm.User.id, email: vm.User.email, name: vm.User.name };
-    }
+    const server = await vmService.getDetailedServerView(vm, projectId, true);
     res.json({ success: true, server });
   } catch (err) {
     logger.error('Admin get VM detail error:', err.message);
+    next(err);
+  }
+}
+
+async function getVmConsole(req, res, next) {
+  try {
+    const { id } = req.params;
+    const vm = await vmService.findVmAny(id, true);
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM introuvable', status: 404, code: 'VM_NOT_FOUND' } });
+    }
+    const projectId = vm.User?.openstackProjectId || null;
+    let url;
+    try {
+      url = await openstack.getConsoleUrl(vm.instanceId, projectId);
+    } catch (osErr) {
+      const status = osErr.response?.status;
+      if (status === 404) {
+        return res.status(503).json({
+          error: {
+            message: 'Console non disponible pour cette VM. Le service noVNC n\'est peut-être pas configuré sur ce déploiement OpenStack.',
+            status: 503,
+            code: 'CONSOLE_UNAVAILABLE'
+          }
+        });
+      }
+      throw osErr;
+    }
+    if (!url) {
+      return res.status(503).json({ error: { message: 'Console non disponible pour cette VM', status: 503 } });
+    }
+    res.json({ success: true, url });
+  } catch (err) {
+    logger.error('Admin VM console error:', err.message);
     next(err);
   }
 }
@@ -338,7 +299,7 @@ async function vmAction(req, res, next) {
         error: { message: 'Action invalide. Utilisez: stop, start, reboot', status: 400 }
       });
     }
-    const vm = await findVmByParam(id);
+    const vm = await vmService.findVmAny(id, true);
     if (!vm) {
       return res.status(404).json({ error: { message: 'VM introuvable', status: 404 } });
     }
@@ -360,11 +321,81 @@ async function vmAction(req, res, next) {
   }
 }
 
+/**
+ * DELETE /api/admin/vms/:id
+ * Supprimer une VM d'un client (admin).
+ */
+async function deleteVm(req, res, next) {
+  try {
+    const { id } = req.params;
+    const vm = await vmService.findVmAny(id, true);
+    if (!vm) {
+      return res.status(404).json({ error: { message: 'VM introuvable', status: 404 } });
+    }
+    const projectId = vm.User?.openstackProjectId || null;
+    try {
+      await openstack.deleteServer(vm.instanceId, projectId);
+    } catch (err) {
+      const status = err.response?.status;
+      if (status !== 404) throw err;
+    }
+
+    await VmRuntime.update(
+      { stoppedAt: new Date() },
+      {
+        where: {
+          instanceId: vm.instanceId,
+          userId: vm.userId,
+          stoppedAt: null
+        }
+      }
+    );
+
+    await vm.destroy();
+    res.json({ success: true, message: 'VM supprimée avec succès.' });
+  } catch (err) {
+    logger.error('Admin delete VM error:', err.message);
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/metrics/latest
+ * Dernière métrique par VM (snapshot flotte), inspiré du service Python.
+ */
+async function getLatestMetricsSnapshot(req, res, next) {
+  try {
+    const vms = await VM.findAll({
+      order: [['createdAt', 'DESC']],
+      include: [{ model: User, as: 'User', attributes: ['id', 'email', 'name', 'openstackProjectId'] }]
+    });
+    const rows = await Promise.all(vms.map(async (vm) => {
+      const projectId = vm.User?.openstackProjectId || null;
+      const { latest, source } = await metricsQueryService.getLatestMetricsForVm(vm, projectId);
+      return {
+        vmId: vm.id,
+        instanceId: vm.instanceId,
+        userId: vm.userId,
+        userEmail: vm.User?.email || null,
+        latest,
+        source
+      };
+    }));
+    res.json({ success: true, count: rows.length, items: rows });
+  } catch (err) {
+    logger.error('Admin latest metrics snapshot error:', err.message);
+    next(err);
+  }
+}
+
 module.exports = {
   getStats,
   listUsers,
   listAllVms,
   getVmDetail,
+  getVmConsole,
   updateUser,
-  vmAction
+  vmAction,
+  deleteVm,
+  getLatestMetricsSnapshot
 };

@@ -20,6 +20,11 @@ const VM = sequelize.define('VM', {
     comment: 'OpenStack server UUID',
     field: 'instance_id'
   },
+  name: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    comment: 'OpenStack server display name'
+  },
   flavorId: {
     type: DataTypes.STRING(64),
     allowNull: true,

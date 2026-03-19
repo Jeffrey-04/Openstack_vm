@@ -504,6 +504,12 @@
   min-height: 100px;
 }
 
+.dashboard-mui-chart-surface {
+  border-radius: 10px;
+  background: radial-gradient(circle at 20% 0%, #111827 0%, #0b1220 60%, #070b14 100%);
+  padding: 0.25rem;
+}
+
 .dashboard-figma-legend {
   display: flex;
   align-items: center;

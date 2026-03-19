@@ -20,6 +20,19 @@ export default function SignUp() {
     setError('');
     setSubmitting(true);
     try {
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
+      if (!trimmedEmail || !trimmedPassword) {
+        setError('Email et mot de passe sont obligatoires.');
+        setSubmitting(false);
+        return;
+      }
+      const strongPassword = /^(?=.*[A-Z])(?=.*[0-9]).{8,}$/;
+      if (!strongPassword.test(trimmedPassword)) {
+        setError('Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.');
+        setSubmitting(false);
+        return;
+      }
       const data = await register({
         email,
         password,

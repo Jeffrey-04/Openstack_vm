@@ -213,3 +213,24 @@
 .admin-users-btn-activate:hover:not(:disabled) {
   background: #dcfce7;
 }
+
+@media (max-width: 900px) {
+  .admin-users {
+    padding: var(--space-md);
+  }
+
+  .admin-users-search {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-users-search-input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .admin-users-pagination {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+}

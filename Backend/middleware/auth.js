@@ -1,12 +1,23 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-use-long-random-string';
+const RAW_JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-use-long-random-string';
+
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-production-use-long-random-string')) {
+  // En production, refuser de démarrer avec un secret faible ou par défaut
+  // eslint-disable-next-line no-console
+  console.error('[AUTH] JWT_SECRET must be set to a strong random value in production.');
+  throw new Error('JWT_SECRET is not configured for production');
+}
+
+const JWT_SECRET = RAW_JWT_SECRET;
 
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const queryToken = typeof req.query?.token === 'string' ? req.query.token : null;
+    const token = headerToken || queryToken;
 
     if (!token) {
       return res.status(401).json({
@@ -19,6 +30,12 @@ const authenticate = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         error: { message: 'User not found', status: 401 }
+      });
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({
+        error: { message: 'Account disabled. Please contact support.', status: 403 }
       });
     }
 
@@ -43,7 +60,9 @@ const authenticate = async (req, res, next) => {
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const queryToken = typeof req.query?.token === 'string' ? req.query.token : null;
+    const token = headerToken || queryToken;
     if (!token) {
       return next();
     }

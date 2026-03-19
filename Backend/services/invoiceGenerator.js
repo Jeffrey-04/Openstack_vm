@@ -46,8 +46,8 @@ function generatePdf(invoiceData) {
     const colWidths = { desc: 250, qty: 60, unit: 80, total: 100 };
     doc.font('Helvetica-Bold');
     doc.text('Description', 50, tableTop);
-    doc.text('Quantité', 50 + colWidths.desc, tableTop);
-    doc.text('Prix unit.', 50 + colWidths.desc + colWidths.qty, tableTop);
+    doc.text('Heures', 50 + colWidths.desc, tableTop);
+    doc.text('Prix par heure', 50 + colWidths.desc + colWidths.qty, tableTop);
     doc.text('Total', 50 + colWidths.desc + colWidths.qty + colWidths.unit, tableTop);
     doc.font('Helvetica');
     doc.moveDown(0.5);

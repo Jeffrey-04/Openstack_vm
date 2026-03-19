@@ -14,7 +14,6 @@ import CreateVM from './pages/CreateVM';
 import AdminDashboard from './pages/AdminDashboard';
 import ClientDashboard from './pages/ClientDashboard';
 import ForgotPassword from './pages/ForgotPassword';
-import PlaceholderPage from './pages/PlaceholderPage';
 import BillingPage from './pages/BillingPage';
 import SettingsPage from './pages/SettingsPage';
 import AdminVmTemplates from './pages/admin/AdminVmTemplates';

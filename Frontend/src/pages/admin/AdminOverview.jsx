@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Button, Card, CardBody, Chip } from '../../components/ui';
 import { DollarSign, ShoppingCart, Server, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiService from '../../services/api';
@@ -33,6 +34,13 @@ export default function AdminOverview() {
     loadDashboardData();
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const loadDashboardData = async () => {
     try {
       setLoading(true);
@@ -59,14 +67,16 @@ export default function AdminOverview() {
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusColor = (status) => {
     const map = {
-      ACTIVE: 'admin-status-running',
-      SHUTOFF: 'admin-status-paused',
-      BUILD: 'admin-status-building',
-      ERROR: 'admin-status-error',
+      ACTIVE: 'success',
+      SHUTOFF: 'default',
+      BUILD: 'warning',
+      ERROR: 'danger',
+      PAUSED: 'warning',
+      SUSPENDED: 'default'
     };
-    return map[status] || 'admin-status-unknown';
+    return map[status] || 'default';
   };
 
   const getStatusText = (status) => {
@@ -95,6 +105,12 @@ export default function AdminOverview() {
     } finally {
       setActionVmId(null);
     }
+  };
+
+  const getVmPrimaryIp = (vm) => {
+    const networks = vm?.addresses ? Object.values(vm.addresses) : [];
+    if (!networks.length || !Array.isArray(networks[0]) || !networks[0][0]) return '—';
+    return networks[0][0].addr || '—';
   };
 
   if (loading) {
@@ -164,14 +180,17 @@ export default function AdminOverview() {
       </div>
 
       {/* Ligne 2: Liste VPS (carte pleine largeur) */}
-      <div className="dashboard-figma-card admin-figma-table-card">
+      <Card shadow="none" className="dashboard-figma-card admin-figma-table-card" style={{ border: '1px solid #e2e8f0' }}>
+        <CardBody>
         <div className="dashboard-figma-card-head">
           <h3 className="dashboard-figma-card-title">Liste des VPS Cloud</h3>
           <div className="admin-figma-table-actions">
-            <Link to="/admin/create" className="admin-btn admin-btn-add">
-              Ajouter Nouveau
+            <Link to="/admin/create">
+              <Button color="primary" variant="flat">Ajouter Nouveau</Button>
             </Link>
-            <Link to="/admin/vms" className="dashboard-figma-link">Voir rapport</Link>
+            <Link to="/admin/vms">
+              <Button variant="light">Voir rapport</Button>
+            </Link>
           </div>
         </div>
         <div className="admin-vm-cards">
@@ -180,14 +199,14 @@ export default function AdminOverview() {
               <div className="admin-vm-card-header">
                 <span className="admin-vm-icon" aria-hidden="true" />
                 <strong>{vm.name}</strong>
-                <span className={`admin-status-badge ${getStatusBadge(vm.status)}`}>
+                <Chip size="sm" color={getStatusColor(vm.status)} variant="flat">
                   {getStatusText(vm.status)}
-                </span>
+                </Chip>
               </div>
               <div className="admin-vm-card-body">
                 <div><span className="admin-vm-card-label">Config</span> {vm.flavor?.vcpus || 4} vCPU, {vm.flavor?.ram ? (vm.flavor.ram / 1024).toFixed(0) : 8} GB RAM</div>
                 <div><span className="admin-vm-card-label">OS</span> {vm.image?.name || '—'}</div>
-                <div><span className="admin-vm-card-label">IP</span> <code className="admin-ip-address">{vm.addresses && Object.values(vm.addresses)[0]?.[0]?.addr || '—'}</code></div>
+                <div><span className="admin-vm-card-label">IP</span> <code className="admin-ip-address">{getVmPrimaryIp(vm)}</code></div>
               </div>
               <div className="admin-action-buttons">
                 <Link to={`/admin/vms/${vm.id}`} className="admin-btn-icon" title="Voir détails">Voir</Link>
@@ -239,13 +258,13 @@ export default function AdminOverview() {
                   </td>
                   <td>
                     <code className="admin-ip-address">
-                      {vm.addresses && Object.values(vm.addresses)[0]?.[0]?.addr || '—'}
+                      {getVmPrimaryIp(vm)}
                     </code>
                   </td>
                   <td>
-                    <span className={`admin-status-badge ${getStatusBadge(vm.status)}`}>
+                    <Chip size="sm" color={getStatusColor(vm.status)} variant="flat">
                       {getStatusText(vm.status)}
-                    </span>
+                    </Chip>
                   </td>
                   <td>
                     <div className="admin-action-buttons">
@@ -280,7 +299,8 @@ export default function AdminOverview() {
             </div>
           </div>
         )}
-      </div>
+        </CardBody>
+      </Card>
 
       {/* Ligne 3: Quick stats type Figma */}
       <div className="dashboard-figma-grid admin-dashboard-figma-quick">

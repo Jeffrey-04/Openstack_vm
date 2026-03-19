@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart } from '@mui/x-charts/BarChart';
+import { PieChart } from '@mui/x-charts/PieChart';
 import { DollarSign, ShoppingCart, Server, Users } from 'lucide-react';
 import apiService from '../../services/api';
 import toast from 'react-hot-toast';
 import Skeleton from '../../components/Skeleton';
 import EmptyState from '../../components/common/EmptyState';
+import { PREMIUM_CHART_SX } from '../../components/charts/chartTheme';
 import './ClientOverview.css';
 
 /* Sales Dashboard: vives couleurs (rose, orange, vert, violet, bleu) */
@@ -57,15 +59,6 @@ export default function ClientOverview() {
           total: 1,
         }))
       : [{ name: '—', value: 0, total: 1 }];
-
-  const lineData =
-    vms.length > 0
-      ? vms.slice(0, 6).map((_, i) => ({
-          name: `${i + 1}`,
-          actifs: Math.min(activeCount, i + 1),
-          total: i + 1,
-        }))
-      : [{ name: '1', actifs: 0, total: 0 }];
 
   const primaryVm = vms[0];
   const firstAddr = primaryVm?.addresses && Object.values(primaryVm.addresses)[0]?.[0]?.addr;
@@ -171,15 +164,17 @@ export default function ClientOverview() {
             ↑ {vms.length > 0 ? activeCount : 0} actif{vms.length > 0 && activeCount !== 1 ? 's' : ''} cette semaine
           </div>
           <p className="dashboard-figma-period">VPS sur la plateforme.</p>
-          <div className="dashboard-figma-chart-wrap">
-            <ResponsiveContainer width="100%" height={120}>
-              <BarChart data={barData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis hide />
-                <Tooltip />
-                <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} name="Actifs" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="dashboard-figma-chart-wrap dashboard-mui-chart-surface">
+            <BarChart
+              dataset={barData}
+              xAxis={[{ scaleType: 'band', dataKey: 'name' }]}
+              yAxis={[{ min: 0, max: 1 }]}
+              series={[{ dataKey: 'value', label: 'Actifs', color: CHART_COLORS[0] }]}
+              height={120}
+              margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+              grid={{ horizontal: true }}
+              sx={PREMIUM_CHART_SX}
+            />
           </div>
           <div className="dashboard-figma-legend">
             <span className="dashboard-figma-legend-dot" style={{ background: CHART_COLORS[0] }} /> Actifs
@@ -193,26 +188,28 @@ export default function ClientOverview() {
             <Link to="/client/vms" className="dashboard-figma-link">Voir rapport</Link>
           </div>
           <p className="dashboard-figma-period">État des VPS.</p>
-          <div className="dashboard-figma-donut-wrap">
-            <ResponsiveContainer width="100%" height={140}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={36}
-                  outerRadius={56}
-                  paddingAngle={2}
-                  dataKey="value"
-                  label={({ name, value }) => `${name} ${value}`}
-                >
-                  {pieData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="dashboard-figma-donut-wrap dashboard-mui-chart-surface">
+            <PieChart
+              height={140}
+              margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+              series={[
+                {
+                  innerRadius: 36,
+                  outerRadius: 56,
+                  paddingAngle: 2,
+                  data: pieData.map((d, i) => ({
+                    id: i,
+                    value: d.value,
+                    label: `${d.name} ${d.value}`,
+                    color: d.color
+                  }))
+                }
+              ]}
+              sx={{
+                ...PREMIUM_CHART_SX,
+                '& .MuiPieArcLabel-root': { fill: '#e2e8f0', fontSize: 11, fontWeight: 600 }
+              }}
+            />
           </div>
           <div className="dashboard-figma-legend dashboard-figma-legend-row">
             {pieData.map((d, i) => (

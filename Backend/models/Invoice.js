@@ -42,7 +42,7 @@ const Invoice = sequelize.define('Invoice', {
     defaultValue: 'XAF'
   },
   status: {
-    type: DataTypes.ENUM('draft', 'pending', 'paid', 'cancelled'),
+    type: DataTypes.ENUM('draft', 'pending', 'paid', 'overdue', 'cancelled'),
     allowNull: false,
     defaultValue: 'pending'
   },

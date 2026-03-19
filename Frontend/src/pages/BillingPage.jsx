@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Card, CardBody, Chip, Input } from '../components/ui';
 import apiService from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -44,14 +45,7 @@ export default function BillingPage() {
     totalPages: 0
   });
 
-  useEffect(() => {
-    loadInvoices();
-    if (!isAdmin) {
-      loadPreferences();
-    }
-  }, [isAdmin, filters.page, filters.status, filters.sort, filters.order, filters.dateFrom, filters.dateTo, filters.userId]);
-
-  const loadPreferences = async () => {
+  const loadPreferences = useCallback(async () => {
     try {
       const res = await apiService.getBillingPreferences();
       if (res.preferences) {
@@ -64,7 +58,7 @@ export default function BillingPage() {
     } catch (err) {
       console.error('Load preferences:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!selectedId) {
@@ -87,7 +81,7 @@ export default function BillingPage() {
     return () => { cancelled = true; };
   }, [selectedId, isAdmin]);
 
-  const loadInvoices = async () => {
+  const loadInvoices = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -117,7 +111,14 @@ export default function BillingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, isAdmin]);
+
+  useEffect(() => {
+    loadInvoices();
+    if (!isAdmin) {
+      loadPreferences();
+    }
+  }, [isAdmin, filters.page, filters.status, filters.sort, filters.order, filters.dateFrom, filters.dateTo, filters.userId, loadInvoices, loadPreferences]);
 
   const handleDownload = async (id) => {
     try {
@@ -199,9 +200,9 @@ export default function BillingPage() {
     return map[status] || status;
   };
 
-  const statusClass = (status) => {
-    const map = { pending: 'billing-status-pending', paid: 'billing-status-paid', overdue: 'billing-status-overdue' };
-    return map[status] || '';
+  const statusColor = (status) => {
+    const map = { pending: 'warning', paid: 'success', overdue: 'danger' };
+    return map[status] || 'default';
   };
 
   const handleSavePreferences = async () => {
@@ -283,7 +284,8 @@ export default function BillingPage() {
       </div>
 
       {isAdmin && (
-        <section className="billing-card" style={{ marginBottom: '1.5rem' }}>
+        <Card shadow="none" className="billing-card" style={{ marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+          <CardBody>
           <h3 className="billing-card-title">Filtres</h3>
           <div className="billing-filters" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
             <div>
@@ -296,6 +298,7 @@ export default function BillingPage() {
                 <option value="">Tous</option>
                 <option value="pending">En attente</option>
                 <option value="paid">Payée</option>
+                <option value="overdue">En retard</option>
                 <option value="draft">Brouillon</option>
                 <option value="cancelled">Annulée</option>
               </select>
@@ -326,45 +329,30 @@ export default function BillingPage() {
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Date début</label>
-              <input
-                type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value, page: 1 }))}
-                className="billing-input"
-              />
+              <Input type="date" value={filters.dateFrom} onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value, page: 1 }))} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Date fin</label>
-              <input
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value, page: 1 }))}
-                className="billing-input"
-              />
+              <Input type="date" value={filters.dateTo} onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value, page: 1 }))} />
             </div>
             {(filters.status || filters.dateFrom || filters.dateTo) && (
               <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={() => setFilters({ status: '', userId: '', dateFrom: '', dateTo: '', sort: 'generatedAt', order: 'DESC', page: 1, limit: 20 })}
-                  className="billing-btn"
-                  style={{ background: 'var(--text-muted)' }}
-                >
-                  Réinitialiser
-                </button>
+                <Button type="button" variant="flat" onClick={() => setFilters({ status: '', userId: '', dateFrom: '', dateTo: '', sort: 'generatedAt', order: 'DESC', page: 1, limit: 20 })}>Réinitialiser</Button>
               </div>
             )}
           </div>
-        </section>
+          </CardBody>
+        </Card>
       )}
 
       {!isAdmin && (
-        <section className="billing-card" style={{ marginBottom: '1.5rem' }}>
+        <Card shadow="none" className="billing-card" style={{ marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+          <CardBody>
           <h3 className="billing-card-title">Préférences de paiement</h3>
         <div className="billing-preferences">
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Mode de règlement</label>
-            <div style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <input
                   type="radio"
@@ -390,32 +378,10 @@ export default function BillingPage() {
               <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
                 Carte de paiement (fictive, environnement TEST)
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', maxWidth: 400 }}>
-                <input
-                  type="text"
-                  placeholder="Numéro (ex: 4242424242424242)"
-                  value={prefsForm.cardNumber}
-                  onChange={(e) => setPrefsForm((p) => ({ ...p, cardNumber: e.target.value }))}
-                  className="billing-input"
-                  maxLength={19}
-                />
-                <input
-                  type="text"
-                  placeholder="MM/AA"
-                  value={prefsForm.cardExpiry}
-                  onChange={(e) => setPrefsForm((p) => ({ ...p, cardExpiry: e.target.value }))}
-                  className="billing-input"
-                  maxLength={5}
-                />
-                <input
-                  type="text"
-                  placeholder="CVV"
-                  value={prefsForm.cardCvv}
-                  onChange={(e) => setPrefsForm((p) => ({ ...p, cardCvv: e.target.value }))}
-                  className="billing-input"
-                  maxLength={4}
-                  style={{ width: 80 }}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.75rem', maxWidth: 560 }}>
+                <Input type="text" placeholder="Numéro (ex: 4242424242424242)" value={prefsForm.cardNumber} onChange={(e) => setPrefsForm((p) => ({ ...p, cardNumber: e.target.value }))} maxLength={19} />
+                <Input type="text" placeholder="MM/AA" value={prefsForm.cardExpiry} onChange={(e) => setPrefsForm((p) => ({ ...p, cardExpiry: e.target.value }))} maxLength={5} />
+                <Input type="text" placeholder="CVV" value={prefsForm.cardCvv} onChange={(e) => setPrefsForm((p) => ({ ...p, cardCvv: e.target.value }))} maxLength={4} />
               </div>
               {preferences?.card?.hasCard && (
                 <div style={{ fontSize: '0.875rem', color: '#059669', marginTop: '0.5rem' }}>
@@ -424,27 +390,25 @@ export default function BillingPage() {
               )}
             </div>
           )}
-          <button
-            type="button"
-            className="billing-btn billing-btn-pay"
-            onClick={handleSavePreferences}
-            disabled={prefsSaving}
-          >
+          <Button type="button" color="primary" variant="flat" onClick={handleSavePreferences} disabled={prefsSaving}>
             {prefsSaving ? 'Enregistrement…' : 'Enregistrer les préférences'}
-          </button>
+          </Button>
         </div>
-      </section>
+          </CardBody>
+        </Card>
       )}
 
       <div className="billing-grid">
         <section className="billing-list-card billing-card">
           <h3 className="billing-card-title">{isAdmin ? 'Toutes les factures' : 'Mes factures'}</h3>
-          {invoices.length === 0 ? (
+          {invoices.filter((inv) => Number(inv.totalAmount || 0) > 0).length === 0 ? (
             <p className="billing-empty">Aucune facture pour le moment.</p>
           ) : (
             <>
             <ul className="billing-list">
-              {invoices.map((inv, idx) => (
+              {invoices
+                .filter((inv) => Number(inv.totalAmount || 0) > 0)
+                .map((inv, idx) => (
                 <li
                   key={inv.id}
                   className={`billing-list-item list-item ${selectedId === inv.id ? 'active' : ''}`}
@@ -452,9 +416,8 @@ export default function BillingPage() {
                 >
                     <button
                       type="button"
-                      className="billing-list-item-btn"
+                      className={`billing-list-item-btn ${isAdmin ? 'billing-list-item-btn-admin' : 'billing-list-item-btn-client'}`}
                       onClick={() => setSelectedId(inv.id)}
-                      style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr 1fr 1fr 1fr' : '1fr 1fr 1fr 1fr', gap: '0.5rem', alignItems: 'center' }}
                     >
                       <span className="billing-list-item-num">{inv.invoiceNumber}</span>
                       {isAdmin && inv.user && (
@@ -463,37 +426,25 @@ export default function BillingPage() {
                         </span>
                       )}
                       <span className="billing-list-item-date">{formatDate(inv.generatedAt)}</span>
-                      <span className={`billing-list-item-status ${statusClass(inv.status)}`}>
+                      <Chip size="sm" color={statusColor(inv.status)} variant="flat">
                         {statusLabel(inv.status)}
-                      </span>
+                      </Chip>
                       <span className="billing-list-item-amount">{formatAmount(inv.totalAmount, inv.currency)}</span>
                     </button>
                   </li>
                 ))}
               </ul>
               {isAdmin && pagination.totalPages > 1 && (
-                <div className="billing-pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-                  <button
-                    type="button"
-                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
-                    disabled={filters.page === 1}
-                    className="billing-btn"
-                    style={{ background: 'var(--text-muted)' }}
-                  >
+                <div className="billing-pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                  <Button type="button" variant="flat" onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))} disabled={filters.page === 1}>
                     Précédent
-                  </button>
+                  </Button>
                   <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                     Page {pagination.page} sur {pagination.totalPages} ({pagination.total} factures)
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
-                    disabled={filters.page >= pagination.totalPages}
-                    className="billing-btn"
-                    style={{ background: 'var(--text-muted)' }}
-                  >
+                  <Button type="button" variant="flat" onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))} disabled={filters.page >= pagination.totalPages}>
                     Suivant
-                  </button>
+                  </Button>
                 </div>
               )}
             </>
@@ -522,8 +473,10 @@ export default function BillingPage() {
               </div>
               <div className="billing-detail-row">
                 <span className="billing-detail-label">Statut</span>
-                <span className={`billing-detail-value ${statusClass(detail.status)}`}>
+                <span className="billing-detail-value">
+                  <Chip size="sm" color={statusColor(detail.status)} variant="flat">
                   {statusLabel(detail.status)}
+                  </Chip>
                 </span>
               </div>
               {isAdmin && detail.user && (
@@ -543,45 +496,38 @@ export default function BillingPage() {
               {detail.items && detail.items.length > 0 && (
                 <div className="billing-detail-items">
                   <div className="billing-detail-label">Lignes</div>
-                  <table className="billing-table">
-                    <thead>
-                      <tr>
-                        <th>Description</th>
-                        <th>Qté</th>
-                        <th>Prix unit.</th>
-                        <th>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detail.items.map((item) => (
-                        <tr key={item.id}>
-                          <td>{item.description}</td>
-                          <td>{item.quantity}</td>
-                          <td>{formatAmount(item.unitPrice, detail.currency)}</td>
-                          <td>{formatAmount(item.total, detail.currency)}</td>
+                  <div className="billing-table-wrap">
+                    <table className="billing-table">
+                      <thead>
+                        <tr>
+                          <th>Description</th>
+                          <th>Heures</th>
+                          <th>Prix par heure</th>
+                          <th>Prix total</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {detail.items.map((item) => (
+                          <tr key={item.id}>
+                            <td>{item.description}</td>
+                            <td>{item.quantity}</td>
+                            <td>{formatAmount(item.unitPrice, detail.currency)}</td>
+                            <td>{formatAmount(item.total, detail.currency)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
               <div className="billing-detail-actions">
-                <button
-                  type="button"
-                  className="billing-btn billing-btn-download"
-                  onClick={() => handleDownload(detail.id)}
-                >
+                <Button type="button" variant="flat" onClick={() => handleDownload(detail.id)}>
                   Télécharger PDF
-                </button>
-                {detail.status === 'pending' && (
-                  <button
-                    type="button"
-                    className="billing-btn billing-btn-pay"
-                    onClick={() => handlePay(detail.id)}
-                    disabled={payingId === detail.id}
-                  >
+                </Button>
+                {(detail.status === 'pending' || detail.status === 'overdue') && (
+                  <Button type="button" color="primary" variant="flat" onClick={() => handlePay(detail.id)} disabled={payingId === detail.id}>
                     {payingId === detail.id ? 'Paiement…' : 'Marquer payée'}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

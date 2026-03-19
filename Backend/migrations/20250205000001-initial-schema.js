@@ -3,11 +3,21 @@
 const { DataTypes } = require('sequelize');
 
 module.exports = {
-  async up({ context: queryInterface }) {
+  async up(params) {
+    // Umzug v3 passes { context, name, path }; older or other setups may pass context directly
+    const queryInterface = params?.context ?? params;
+    if (!queryInterface?.sequelize) {
+      throw new Error('Migration up: missing queryInterface (context)');
+    }
     const dialect = queryInterface.sequelize.getDialect();
     const isSqlite = dialect === 'sqlite';
-    const tables = await queryInterface.showAllTables();
-    const has = (name) => tables.some((t) => (isSqlite ? t === name : t.toLowerCase() === name.toLowerCase()));
+    let tables = await queryInterface.showAllTables();
+    if (!Array.isArray(tables)) {
+      tables = [];
+    }
+    // Normalize: strip schema prefix (e.g. "public.users" -> "users") for comparison
+    const normalize = (t) => (typeof t === 'string' ? t.split('.').pop() : String(t));
+    const has = (name) => tables.some((t) => (isSqlite ? normalize(t) === name : normalize(t).toLowerCase() === name.toLowerCase()));
 
     if (!has('users')) {
       await queryInterface.createTable('users', {
@@ -179,7 +189,11 @@ module.exports = {
     }
   },
 
-  async down({ context: queryInterface }) {
+  async down(params) {
+    const queryInterface = params?.context ?? params;
+    if (!queryInterface?.sequelize) {
+      throw new Error('Migration down: missing queryInterface (context)');
+    }
     const tables = ['usage_slices', 'payment_methods', 'global_scale_up_rules', 'vm_templates', 'vm_runtimes', 'pricing_rules', 'resource_usages', 'scaling_events', 'scaling_policies', 'invoice_items', 'invoices', 'vms', 'users'];
     for (const table of tables) {
       await queryInterface.dropTable(table, { cascade: true });

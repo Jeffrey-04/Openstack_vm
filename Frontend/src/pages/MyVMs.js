@@ -202,7 +202,9 @@ function MyVMs() {
                   <strong>ID:</strong> <code style={{ fontSize: '0.875rem' }}>{vm.id.substring(0, 8)}...</code>
                 </div>
                 <div style={{ marginBottom: '0.5rem' }}>
-                  <strong>Créé:</strong> {new Date(vm.created).toLocaleDateString('fr-FR')}
+                  <strong>Créé:</strong> {(vm.createdAt || vm.created)
+                    ? new Date(vm.createdAt || vm.created).toLocaleDateString('fr-FR')
+                    : '—'}
                 </div>
                 {(vm.preferredAddress || (vm.addresses && Object.keys(vm.addresses).length > 0)) && (
                   <div>

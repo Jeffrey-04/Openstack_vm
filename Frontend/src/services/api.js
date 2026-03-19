@@ -141,6 +141,15 @@ export const apiService = {
     return response.data;
   },
 
+  getVmMetricsStreamUrl(vmId) {
+    const token = getToken();
+    const path = API.ENDPOINTS.VM_METRICS_STREAM(vmId);
+    const origin = API.BASE_URL || window.location.origin;
+    const baseUrl = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+    const separator = path.includes('?') ? '&' : '?';
+    return token ? `${baseUrl}${path}${separator}token=${encodeURIComponent(token)}` : `${baseUrl}${path}`;
+  },
+
   async getVmScalingHistory(vmId) {
     const response = await axiosInstance.get(API.ENDPOINTS.VM_SCALING_HISTORY(vmId));
     return response.data;
@@ -148,6 +157,11 @@ export const apiService = {
 
   async getVmConsole(vmId) {
     const response = await axiosInstance.get(API.ENDPOINTS.VM_CONSOLE(vmId));
+    return response.data;
+  },
+
+  async getAdminVmConsole(vmIdOrDbId) {
+    const response = await axiosInstance.get(API.ENDPOINTS.ADMIN_VM_CONSOLE(vmIdOrDbId));
     return response.data;
   },
 
@@ -318,6 +332,10 @@ export const apiService = {
   },
   async adminVmAction(vmIdOrDbId, action) {
     const response = await axiosInstance.post(`${API.ENDPOINTS.ADMIN_VMS}/${vmIdOrDbId}/action`, { action });
+    return response.data;
+  },
+  async deleteAdminVM(vmIdOrDbId) {
+    const response = await axiosInstance.delete(API.ENDPOINTS.ADMIN_VM_DELETE(vmIdOrDbId));
     return response.data;
   },
   async updateAdminUser(id, data) {

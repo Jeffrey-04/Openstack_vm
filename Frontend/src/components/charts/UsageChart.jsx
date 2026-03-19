@@ -1,40 +1,63 @@
 import React from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart } from '@mui/x-charts/LineChart';
+import { BarChart } from '@mui/x-charts/BarChart';
+import { Card, CardBody } from '../ui';
+import { CHART_SURFACE_STYLE, PREMIUM_CHART_SX } from './chartTheme';
 
 export function UsageChart({ data = [], dataKeys = [], title = 'Utilisation', height = 260 }) {
   if (!dataKeys.length) dataKeys = [{ key: 'value', color: '#667eea', name: 'Valeur' }];
+  const xLabels = data.map((point, idx) => point?.name || `${idx + 1}`);
+  const series = dataKeys.map(({ key, color, name }) => ({
+    data: data.map((point) => {
+      const value = Number(point?.[key]);
+      return Number.isFinite(value) ? value : null;
+    }),
+    label: name || key,
+    color: color || '#667eea',
+    curve: 'monotoneX',
+    showMark: false
+  }));
   return (
-    <div className="usage-chart-container" style={{ width: '100%', height }}>
+    <Card shadow="none" style={{ border: '1px solid #e2e8f0' }}>
+      <CardBody className="usage-chart-container" style={{ width: '100%', height }}>
       {title && <h3 style={{ marginBottom: '0.5rem', fontSize: '1rem' }}>{title}</h3>}
-      <ResponsiveContainer width="100%" height={height - 30}>
-        <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} />
-          <Tooltip />
-          <Legend />
-          {dataKeys.map(({ key, color, name }) => (
-            <Line key={key} type="monotone" dataKey={key} stroke={color || '#667eea'} name={name || key} strokeWidth={2} dot={false} />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+      <div style={CHART_SURFACE_STYLE}>
+        <LineChart
+          xAxis={[{ scaleType: 'point', data: xLabels }]}
+          series={series}
+          height={height - 30}
+          margin={{ top: 16, right: 20, left: 20, bottom: 24 }}
+          grid={{ vertical: false, horizontal: true }}
+          sx={PREMIUM_CHART_SX}
+        />
+      </div>
+      </CardBody>
+    </Card>
   );
 }
 
 export function BarUsageChart({ data = [], dataKey = 'value', name = 'Valeur', color = '#667eea', title, height = 200 }) {
+  const chartData = data.map((point, idx) => ({
+    label: point?.name || `${idx + 1}`,
+    [dataKey]: Number.isFinite(Number(point?.[dataKey])) ? Number(point?.[dataKey]) : 0
+  }));
   return (
-    <div className="bar-usage-chart" style={{ width: '100%', height }}>
+    <Card shadow="none" style={{ border: '1px solid #e2e8f0' }}>
+      <CardBody className="bar-usage-chart" style={{ width: '100%', height }}>
       {title && <h3 style={{ marginBottom: '0.5rem', fontSize: '1rem' }}>{title}</h3>}
-      <ResponsiveContainer width="100%" height={height - 30}>
-        <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} />
-          <Tooltip />
-          <Bar dataKey={dataKey} name={name} fill={color} radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+      <div style={CHART_SURFACE_STYLE}>
+        <BarChart
+          dataset={chartData}
+          xAxis={[{ scaleType: 'band', dataKey: 'label' }]}
+          series={[{ dataKey, label: name, color }]}
+          yAxis={[{}]}
+          height={height - 30}
+          margin={{ top: 16, right: 20, left: 20, bottom: 24 }}
+          grid={{ horizontal: true }}
+          sx={PREMIUM_CHART_SX}
+        />
+      </div>
+      </CardBody>
+    </Card>
   );
 }

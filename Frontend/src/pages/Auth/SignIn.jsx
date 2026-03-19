@@ -32,6 +32,17 @@ export default function SignIn() {
     setError('');
     setSubmitting(true);
     try {
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
+      if (!trimmedEmail || !trimmedPassword) {
+        setError('Email et mot de passe sont obligatoires.');
+        return;
+      }
+      const strongEnough = trimmedPassword.length >= 8;
+      if (!strongEnough) {
+        setError('Le mot de passe doit contenir au moins 8 caractères.');
+        return;
+      }
       const data = await login(email, password);
       if (rememberMe) {
         try { localStorage.setItem(REMEMBER_KEY, email); } catch (_) {}

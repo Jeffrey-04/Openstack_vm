@@ -11,7 +11,9 @@ router.get('/', async (req, res, next) => {
   try {
     const list = await Notification.findAll({
       where: { userId: req.userId },
-      order: [['createdAt', 'DESC']],
+      // Use primary key ordering to avoid runtime errors on legacy DBs
+      // where createdAt/created_at columns may be missing.
+      order: [['id', 'DESC']],
       limit: 50
     });
     const unreadFirst = [...list].sort((a, b) => (a.readAt ? 1 : 0) - (b.readAt ? 1 : 0));

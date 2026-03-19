@@ -41,6 +41,20 @@ class MetricsMonitor {
     return u ? Number(u.value) : null;
   }
 
+  async getRecentMetricAverageByInstanceId(instanceId, metricType, points = 3) {
+    const vm = await VM.findOne({ where: { instanceId } });
+    if (!vm) return null;
+    const rows = await ResourceUsage.findAll({
+      where: { vmId: vm.id, metricType },
+      order: [['timestamp', 'DESC']],
+      limit: points
+    });
+    if (!rows.length) return null;
+    const values = rows.map((r) => Number(r.value)).filter((v) => Number.isFinite(v));
+    if (!values.length) return null;
+    return values.reduce((a, b) => a + b, 0) / values.length;
+  }
+
   async checkThresholds() {
     const policies = await ScalingPolicy.findAll({ where: { isActive: true } });
     for (const policy of policies) {
@@ -48,8 +62,8 @@ class MetricsMonitor {
       const low = Number(policy.thresholdLow);
 
       if (policy.metricType === 'cpu_and_memory') {
-        const cpu = await this.getCurrentMetricByInstanceId(policy.instanceId, 'cpu_util');
-        const mem = await this.getCurrentMetricByInstanceId(policy.instanceId, 'memory_usage');
+        const cpu = await this.getRecentMetricAverageByInstanceId(policy.instanceId, 'cpu_util');
+        const mem = await this.getRecentMetricAverageByInstanceId(policy.instanceId, 'memory_usage');
         if (cpu == null && mem == null) continue;
         const cpuVal = cpu != null ? cpu : 0;
         const memVal = mem != null ? mem : 0;
@@ -61,7 +75,7 @@ class MetricsMonitor {
         continue;
       }
 
-      const value = await this.getCurrentMetricByInstanceId(policy.instanceId, policy.metricType);
+      const value = await this.getRecentMetricAverageByInstanceId(policy.instanceId, policy.metricType);
       if (value == null) continue;
       if (value >= high || value <= low) {
         await this.notify(policy.instanceId, policy.metricType, value, policy);

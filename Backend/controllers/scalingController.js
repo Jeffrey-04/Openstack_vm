@@ -1,6 +1,5 @@
-const { ScalingPolicy, ScalingEvent, ResourceUsage, VM } = require('../models');
-const { Op } = require('sequelize');
-const { getInstanceMetrics } = require('../services/ceilometer');
+const { ScalingPolicy, ScalingEvent, VM } = require('../models');
+const metricsQueryService = require('../services/metricsQueryService');
 
 async function ensureVmOwnership(req, res) {
   const paramId = req.params.id;
@@ -55,7 +54,37 @@ async function putScalingPolicy(req, res, next) {
     if (vm === null) return;
     const instanceId = req.vmInstanceId;
     const { metricType, thresholdHigh, thresholdLow, isActive, cooldownMinutes, baseFlavorId } = req.body;
+    const allowedMetricTypes = new Set([
+      'cpu_util',
+      'memory_usage',
+      'disk_usage',
+      'network_incoming_bytes',
+      'network_outgoing_bytes',
+      'cpu_and_memory'
+    ]);
+    const highNum = thresholdHigh != null ? Number(thresholdHigh) : null;
+    const lowNum = thresholdLow != null ? Number(thresholdLow) : null;
+    const cooldownNum = cooldownMinutes != null ? Number(cooldownMinutes) : null;
+    const metricToUse = metricType || 'cpu_util';
+    if (!allowedMetricTypes.has(metricToUse)) {
+      return res.status(400).json({ error: { message: 'Invalid metricType', status: 400 } });
+    }
+    if (highNum != null && (!Number.isFinite(highNum) || highNum < 0 || highNum > 100)) {
+      return res.status(400).json({ error: { message: 'thresholdHigh must be between 0 and 100', status: 400 } });
+    }
+    if (lowNum != null && (!Number.isFinite(lowNum) || lowNum < 0 || lowNum > 100)) {
+      return res.status(400).json({ error: { message: 'thresholdLow must be between 0 and 100', status: 400 } });
+    }
+    if (cooldownNum != null && (!Number.isInteger(cooldownNum) || cooldownNum < 0 || cooldownNum > 1440)) {
+      return res.status(400).json({ error: { message: 'cooldownMinutes must be an integer between 0 and 1440', status: 400 } });
+    }
+
     let policy = await ScalingPolicy.findOne({ where: { instanceId } });
+    const effectiveHigh = highNum != null ? highNum : Number(policy?.thresholdHigh ?? 80);
+    const effectiveLow = lowNum != null ? lowNum : Number(policy?.thresholdLow ?? 20);
+    if (effectiveHigh < effectiveLow) {
+      return res.status(400).json({ error: { message: 'thresholdHigh must be >= thresholdLow', status: 400 } });
+    }
     if (policy) {
       const updates = {
         metricType: metricType ?? policy.metricType,
@@ -102,36 +131,8 @@ async function getMetrics(req, res, next) {
     if (vm === null) return;
     const instanceId = req.vmInstanceId;
     const projectId = req.user?.openstackProjectId || null;
-    const byType = {};
-
-    const ceilometerMetrics = await getInstanceMetrics(instanceId, projectId);
-    if (ceilometerMetrics) {
-      if (ceilometerMetrics.cpu_util?.length) byType.cpu_util = ceilometerMetrics.cpu_util;
-      if (ceilometerMetrics.memory_usage?.length) byType.memory_usage = ceilometerMetrics.memory_usage;
-      if (ceilometerMetrics.disk_usage?.length) byType.disk_usage = ceilometerMetrics.disk_usage;
-      if (ceilometerMetrics.network_incoming_bytes?.length) byType.network_incoming_bytes = ceilometerMetrics.network_incoming_bytes;
-      if (ceilometerMetrics.network_outgoing_bytes?.length) byType.network_outgoing_bytes = ceilometerMetrics.network_outgoing_bytes;
-    }
-
-    const usages = await ResourceUsage.findAll({
-      where: { vmId: vm.id },
-      order: [['timestamp', 'DESC']],
-      limit: 100
-    });
-    for (const u of usages) {
-      if (!byType[u.metricType]) byType[u.metricType] = [];
-      byType[u.metricType].push({ value: Number(u.value), timestamp: u.timestamp });
-    }
-    for (const key of Object.keys(byType)) {
-      byType[key].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    }
-    if (!byType.cpu_util) byType.cpu_util = [];
-    if (!byType.memory_usage) byType.memory_usage = [];
-    if (!byType.mem_util) byType.mem_util = [];
-    if (!byType.disk_usage) byType.disk_usage = [];
-    if (!byType.network_incoming_bytes) byType.network_incoming_bytes = [];
-    if (!byType.network_outgoing_bytes) byType.network_outgoing_bytes = [];
-    res.json({ success: true, metrics: byType, instanceId });
+    const { metrics, source } = await metricsQueryService.getMergedMetricsForVm(vm, projectId);
+    res.json({ success: true, metrics, instanceId, source });
   } catch (err) {
     next(err);
   }

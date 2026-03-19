@@ -66,6 +66,8 @@ async function scaleUp(instanceId, policy, currentValue) {
   }
   const sid = server.server?.id || server.id;
   const currentFlavorId = server.server?.flavor?.id || server.flavor?.id;
+  const status = (server.server?.status || server.status || '').toUpperCase();
+  if (['RESIZE', 'VERIFY_RESIZE', 'MIGRATING'].includes(status)) return;
   if (!currentFlavorId) return;
 
   let nextFlavor = null;
@@ -88,14 +90,12 @@ async function scaleUp(instanceId, policy, currentValue) {
     await openstack.resizeServer(sid, nextFlavor.id, projectId);
     await ScalingEvent.create({
       instanceId: sid,
-      action: 'scale_up',
+      action: 'resize_requested_up',
       oldFlavorId: currentFlavorId,
       newFlavorId: nextFlavor.id,
       triggerMetric: policy.metricType,
       triggerValue: triggerVal
     });
-    const vm = await VM.findOne({ where: { instanceId: sid } });
-    if (vm) await vm.update({ flavorId: nextFlavor.id });
     console.log(`Scale up: ${sid} -> ${nextFlavor.name}`);
   } catch (err) {
     console.error('Scale up error:', err.message);
@@ -115,6 +115,8 @@ async function scaleDown(instanceId, policy, currentValue) {
   }
   const sid = server.server?.id || server.id;
   const currentFlavorId = server.server?.flavor?.id || server.flavor?.id;
+  const status = (server.server?.status || server.status || '').toUpperCase();
+  if (['RESIZE', 'VERIFY_RESIZE', 'MIGRATING'].includes(status)) return;
   if (!currentFlavorId) return;
 
   let nextFlavor = null;
@@ -136,14 +138,12 @@ async function scaleDown(instanceId, policy, currentValue) {
     await openstack.resizeServer(sid, nextFlavor.id, projectId);
     await ScalingEvent.create({
       instanceId: sid,
-      action: 'scale_down',
+      action: 'resize_requested_down',
       oldFlavorId: currentFlavorId,
       newFlavorId: nextFlavor.id,
       triggerMetric: policy.metricType,
       triggerValue: triggerVal
     });
-    const vm = await VM.findOne({ where: { instanceId: sid } });
-    if (vm) await vm.update({ flavorId: nextFlavor.id });
     console.log(`Scale down: ${sid} -> ${nextFlavor.name}`);
   } catch (err) {
     console.error('Scale down error:', err.message);
